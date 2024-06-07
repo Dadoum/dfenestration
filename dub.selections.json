@@ -1,0 +1,20 @@
+{
+	"fileVersion": 1,
+	"versions": {
+		"arsd-official": {"version":"0ea7ff4439bc83c77b184747ac96ee11e4e8d546","repository":"git+https://github.com/Dadoum/arsd.git"},
+		"bindbc-gles": "0.0.1",
+		"bindbc-loader": "1.1.0",
+		"bindbc-opengl": "1.1.0",
+		"derelict-util": "2.0.6",
+		"dynamic-loader": {"version":"1d9eaa74e7d54c395ce4abfc15a9654ebfd9c7d2","repository":"git+https://github.com/Dadoum/dynamicloader.git"},
+		"emsi_containers": "0.9.0",
+		"erupted": "2.1.98+v1.3.248",
+		"eventcore": "0.9.30",
+		"libasync": "0.8.6",
+		"memutils": "1.0.10",
+		"taggedalgebraic": "0.11.23",
+		"wayland": "0.3.1",
+		"xcb-d": "2.1.1+1.11.1",
+		"xlib-d": "0.3.0"
+	}
+}

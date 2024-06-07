@@ -1,0 +1,28 @@
+name "dfenestration"
+description "A minimal D application."
+authors "Dadoum"
+license "proprietary"
+sourcePaths "source"
+
+dependency "dynamic-loader" repository="git+https://github.com/Dadoum/dynamicloader.git" version="1d9eaa74e7d54c395ce4abfc15a9654ebfd9c7d2"
+dependency "eventcore" version="~>0.9.30"
+// dependency "taggedalgebraic" version="~>0.11.23"
+
+// Wayland backend (default on Linux)
+dependency "wayland:client" version="~>0.3.1"
+dependency "wayland:egl" version="~>0.3.1"
+dependency "bindbc-gles" version="~>0.0.1"
+sourcePaths "external/wayland-protocols"
+versions "Wayland"
+
+dependency "xcb-d" version="~>2.1.1+1.11.1"
+versions "Xcb"
+
+dependency "erupted" version="~>2.1.98+v1.3.248"
+sourcePaths "external/vkvg"
+versions "VkVG"
+
+dependency "arsd-official:nanovega" repository="git+https://github.com/Dadoum/arsd.git" version="0ea7ff4439bc83c77b184747ac96ee11e4e8d546"
+subConfiguration "arsd-official:nanovega" "bindbc"
+sourcePaths "external/nanovega"
+versions "NanoVega"

@@ -1,0 +1,103 @@
+module dfenestration.renderers.nanovega.glrenderer;
+
+import std.exception;
+import std.logger;
+import std.meta;
+
+import dfenestration.backends.backend;
+import dfenestration.primitives;
+import dfenestration.renderers.context;
+import dfenestration.renderers.renderer;
+
+import dfenestration.widgets.window;
+
+version (NanoVega) {
+    import bindbc.opengl;
+
+    import arsd.nanovega;
+
+    import dfenestration.renderers.nanovega.baserenderer;
+
+    class NanoVegaGLRenderer: NanoVegaBaseRenderer {
+        this(Backend backend) {
+            auto nanoVegaBackend = cast(NanoVegaGLRendererCompatible) backend;
+            assert(nanoVegaBackend !is null);
+
+            nanoVegaBackend.loadGL();
+        }
+
+        static bool compatible() {
+            // the library can be loaded.
+            return loadOpenGL() >= GLSupport.noContext;
+        }
+
+        override void draw(BackendWindow backendWindow) {
+            auto window = cast(NanoVegaGLWindow) backendWindow;
+            assert(window !is null);
+
+            if (!window.setAsCurrentContextGL()) {
+                return;
+            }
+
+            glViewport(0, 0, window.canvasSize().tupleof);
+
+            glClearColor(0, 0, 0, 0);
+            glClear(glNVGClearFlags);
+
+            super.draw(backendWindow);
+        }
+
+        override void initializeWindow(BackendWindow backendWindow) {
+            auto window = cast(NanoVegaGLWindow) backendWindow;
+            assert(window !is null);
+
+            window.createWindowGL(200, 200);
+
+            synchronized {
+                window.setAsCurrentContextGL();
+                NVGContext nvgContext = nvgCreateContext();
+                enforce(nvgContext !is null, "Cannot build NVGContext");
+                window.nvgContext = nvgContext;
+            }
+            window.swapBuffersGL();
+        }
+
+        override void present(BackendWindow backendWindow) {
+            auto window = cast(NanoVegaGLWindow) backendWindow;
+            assert(window !is null);
+
+            window.swapBuffersGL();
+        }
+
+        override void cleanup(BackendWindow backendWindow) {
+            auto window = cast(NanoVegaGLWindow) backendWindow;
+            assert(window !is null);
+
+            window.cleanupGL();
+        }
+
+        override void resize(BackendWindow backendWindow, uint width, uint height) {
+            auto window = cast(NanoVegaGLWindow) backendWindow;
+            assert(window !is null);
+
+            window.resizeGL(width, height);
+        }
+    }
+
+    interface NanoVegaGLRendererCompatible: BackendCompatibleWith!NanoVegaGLRenderer {
+        void loadGL();
+        NanoVegaGLWindow createBackendWindow(Window w);
+    }
+
+    interface NanoVegaGLWindow: NanoVegaBaseWindow {
+        void createWindowGL(uint width, uint height);
+        void resizeGL(uint width, uint height);
+        void swapBuffersGL();
+        bool setAsCurrentContextGL();
+        void cleanupGL();
+    }
+} else {
+    alias NanoVegaGLRenderer = AliasSeq!();
+    alias NanoVegaGLRendererCompatible = AliasSeq!();
+    alias NanoVegaGLWindow = AliasSeq!();
+}
