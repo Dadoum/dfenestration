@@ -10,6 +10,8 @@ version (Wayland):
     import std.meta;
     import std.process;
 
+    import libasync;
+
     import wayland.native.client: wl_proxy_get_user_data, wl_proxy_set_user_data;
 
     import wayland.client;
@@ -77,6 +79,7 @@ version (Wayland):
         uint currentSerial = 0;
 
         this() {
+            super();
             display = WlDisplay.connect();
             if (display is null) {
                 throw new WaylandException("Cannot create display!");
@@ -204,6 +207,16 @@ version (Wayland):
                         break;
                 }
             };
+
+            AsyncEvent event = new AsyncEvent(super._eventLoop, display.getFd());
+            event.run((code) {
+                while (display.prepareRead() != 0) {
+                    display.dispatchPending();
+                }
+                display.flush();
+                display.readEvents();
+                display.dispatchPending();
+            });
         }
 
         enum TouchStatus { start, move, end }
@@ -218,24 +231,6 @@ version (Wayland):
 
             display.disconnect();
             display = null;
-        }
-
-        override void handleEvents(Duration defaultTimeout) {
-            while (display.prepareRead() != 0) {
-                display.dispatchPending();
-            }
-            display.flush();
-            display.readEvents();
-            display.dispatchPending();
-        }
-
-        override void paintWindow(BackendWindow window) {
-            assert(renderer !is null, "Renderer has not been initialized properly and we somehow it has gone unnoticed until now.");
-            renderer.draw(window);
-        }
-
-        override void presentWindow(BackendWindow window) {
-            renderer.present(window);
         }
 
         override WaylandWindow createBackendWindow(Window w) {
@@ -365,6 +360,7 @@ version (Wayland):
 
         void makeSurface() {
             trace("Wayland surface is being made.");
+            scope(success) trace("Wayland surface has successfully been made!");
             surface = backend.compositor.createSurface();
             wl_proxy_set_user_data(surface.proxy(), cast(void*) this);
 
@@ -427,6 +423,7 @@ version (Wayland):
             // }
 
             reconfigure();
+            invalidate();
         }
 
         void reconfigure() {
@@ -489,7 +486,6 @@ version (Wayland):
         }
 
         void paint(Context context) {
-            auto frame = surface.frame();
             context.save();
             scope(exit) context.restore();
 
@@ -502,6 +498,24 @@ version (Wayland):
             }
 
             window.paint(context);
+        }
+
+        bool dirty = false;
+        void invalidate() {
+            if (dirty || !surface) {
+                return;
+            }
+
+            info("invalidate");
+            dirty = true;
+            surface.frame().onDone(&onRedraw);
+            surface.commit();
+        }
+
+        void onRedraw(WlCallback callback, uint callbackData) {
+            info("aa");
+            renderer.draw(this);
+            dirty = false;
         }
 
         struct WaylandMousePos {

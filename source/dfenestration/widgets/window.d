@@ -122,6 +122,7 @@ class Window: Container!Widget {
      +/
     int run(bool showWindow = true) {
         if (showWindow) show();
+
         while (!closed) {
             backend.roundtrip();
         }
@@ -161,7 +162,7 @@ class Window: Container!Widget {
         if (y2 > invalidatedZone.y + invalidatedZone.height()) {
             invalidatedZone.width = y2 - invalidatedZone.y;
         }
-        backend.queueRedraw(this);
+        backendWindow.invalidate();
     }
 
     Window role(Role role) { backendWindow.role(role); return this; }

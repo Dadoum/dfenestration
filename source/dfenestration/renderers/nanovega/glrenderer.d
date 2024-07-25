@@ -45,6 +45,7 @@ version (NanoVega) {
             glClear(glNVGClearFlags);
 
             super.draw(backendWindow);
+            window.swapBuffersGL();
         }
 
         override void initializeWindow(BackendWindow backendWindow) {
@@ -59,13 +60,6 @@ version (NanoVega) {
                 enforce(nvgContext !is null, "Cannot build NVGContext");
                 window.nvgContext = nvgContext;
             }
-            window.swapBuffersGL();
-        }
-
-        override void present(BackendWindow backendWindow) {
-            auto window = cast(NanoVegaGLWindow) backendWindow;
-            assert(window !is null);
-
             window.swapBuffersGL();
         }
 

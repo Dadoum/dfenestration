@@ -10,7 +10,7 @@ import std.logger;
 import std.process;
 import std.traits;
 
-import eventcore.core;
+import libasync;
 
 import dfenestration.linkedlist;
 
@@ -23,54 +23,16 @@ enum backendEnvironmentVariable = "DFBACKEND";
 enum rendererEnvironmentVariable = "DFRENDERER";
 
 abstract class Backend {
-    Duration delayMsecs = dur!"msecs"(1000 / 60);
+    EventLoop _eventLoop;
 
-    BackendWindow[size_t] windowsToRedraw;
+    EventLoop eventLoop() => _eventLoop;
 
-    /++
-     + Target framerate if using the default waitNextFrame implementation.
-     +/
-    void targetFramerate(uint framerate) {
-        delayMsecs = ((1. / framerate) * 1000).to!long.msecs;
+    this() {
+        _eventLoop = new EventLoop();
     }
 
-    struct TimerCallback {
-        MonoTime time;
-        void delegate() callback;
-    }
-    LinkedList!TimerCallback timers;
-    MonoTime targetTime;
-    void roundtrip() {
-        targetTime = MonoTime.currTime() + delayMsecs;
-        handleEvents(delayMsecs);
-        foreach (_, window; windowsToRedraw) {
-            paintWindow(window);
-        }
-        waitNextFrame();
-        auto node = timers.head;
-        while (node) {
-            if (node.object.time > targetTime) {
-                break;
-            }
-            node.object.callback();
-            timers.removeFront();
-            node = node.next;
-        }
-        foreach (_, window; windowsToRedraw) {
-            presentWindow(window);
-        }
-        windowsToRedraw.clear();
-    }
-
-    void planCallback(MonoTime time, void delegate() callback) {
-        timers.insertAfter((node) => node.time < time, TimerCallback(time, callback));
-    }
-
-    void waitNextFrame() {
-        auto timeAhead = targetTime - MonoTime.currTime();
-        if (timeAhead > 0.msecs) {
-            Thread.sleep(timeAhead);
-        } // if we're late present the frame anyway. TODO: maybe skip that frame? Renderer may do that anyway ¯\_(ツ)_/¯
+    final void roundtrip() {
+        eventLoop.loop();
     }
 
     Renderer buildRenderer(this R)() {
@@ -87,23 +49,12 @@ abstract class Backend {
         throw new NoRendererException(format!"No renderer is available for %s."(R.stringof));
     }
 
-    void queueRedraw(Window window) {
-        // TODO: Use a real set for this.
-        auto hash = window.toHash();
-        if (hash in windowsToRedraw) {
-            return;
-        }
-        windowsToRedraw[hash] = window.backendWindow;
-    }
-
-    abstract void paintWindow(BackendWindow window);
-    abstract void presentWindow(BackendWindow window);
-    abstract void handleEvents(Duration defaultTimeout);
     abstract BackendWindow createBackendWindow(Window window);
 }
 
 interface BackendWindow {
     void paint(Context context);
+    void invalidate();
 
     void role(Role role);
 

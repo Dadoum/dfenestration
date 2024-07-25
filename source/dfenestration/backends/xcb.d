@@ -265,6 +265,10 @@ class XcbWindow: BackendWindow {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
     }
 
+    void invalidate() {
+        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+    }
+
     void role(Role role) {
 
     }

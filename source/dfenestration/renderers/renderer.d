@@ -26,13 +26,6 @@ abstract class Renderer {
      + IT HAS TO SUPPORT SCALING, AND ADJUST THE CANVAS SIZE APPROPRIATELY (see NanoVega's BaseRenderer for reference).
      +/
     abstract void draw(BackendWindow window);
-
-
-    /++
-     + Called when a window that has been drawn has to be presented. It is timed to not exceed a certain number of
-     + frames.
-     +/
-    abstract void present(BackendWindow window);
 }
 
 /++

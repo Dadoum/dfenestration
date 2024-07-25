@@ -648,7 +648,7 @@ version (VkVG) {
                 ulong.max,
                 vulkanProps.presentationSemaphore,
                 VK_NULL_HANDLE,
-                &(window.vkvgRendererProperties().currentImageIndex)
+                &imageIndex
             );
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
@@ -662,49 +662,31 @@ version (VkVG) {
             }
 
             window.paint(new VkVGContext(vulkanProps.vkvgSurface));
-        }
 
-
-        /++
-         + Called when a window that has been drawn has to be presented. It is timed to not exceed a certain number of
-         + frames.
-         +/
-        override void present(BackendWindow backendWindow) {
-            VkVGWindow window = cast(VkVGWindow) backendWindow;
-            assert(window !is null);
-
-            auto vulkanProps = window.vkvgRendererProperties();
-
-            // TODO optimize that
-            if (!vulkanProps.swapchain) {
-                return;
-            }
-
-            VkSemaphore[] waitSemaphores = [ vulkanProps.presentationSemaphore ];
-            VkSemaphore[] signalSemaphores = [ vulkanProps.graphicsSemaphore ];
+            // VkSemaphore[] waitSemaphores = [ vulkanProps.presentationSemaphore ];
+            // VkSemaphore[] signalSemaphores = [ vulkanProps.graphicsSemaphore ];
 
             VkPipelineStageFlags waitStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            uint imageIndex = vulkanProps.currentImageIndex;
 
             VkSubmitInfo submitInfo = {
-                waitSemaphoreCount      : cast(uint) waitSemaphores.length,
-                pWaitSemaphores         : waitSemaphores.ptr,
+                waitSemaphoreCount      : /+ cast(uint) waitSemaphores.length +/ 1,
+                pWaitSemaphores         : /+ waitSemaphores.ptr +/ &vulkanProps.presentationSemaphore,
                 pWaitDstStageMask       : &waitStages,
                 commandBufferCount      : 1,
                 pCommandBuffers         : &vulkanProps.commandBuffers[imageIndex],
-                signalSemaphoreCount    : cast(uint) signalSemaphores.length,
-                pSignalSemaphores       : signalSemaphores.ptr
+                signalSemaphoreCount    : /+ cast(uint) signalSemaphores.length +/ 1,
+                pSignalSemaphores       : /+ signalSemaphores.ptr +/ &vulkanProps.graphicsSemaphore
             };
 
             vkQueueSubmit(graphicsQueue, 1, &submitInfo, null).vkEnforce();
 
-            auto swapchains = [vulkanProps.swapchain];
+            // auto swapchains = [vulkanProps.swapchain];
 
             VkPresentInfoKHR presentInfo = {
-                waitSemaphoreCount      : cast(uint) signalSemaphores.length,
-                pWaitSemaphores         : signalSemaphores.ptr,
-                swapchainCount          : cast(uint) swapchains.length,
-                pSwapchains             : swapchains.ptr,
+                waitSemaphoreCount      : /+ cast(uint) signalSemaphores.length +/ 1,
+                pWaitSemaphores         : /+ signalSemaphores.ptr +/ &vulkanProps.graphicsSemaphore,
+                swapchainCount          : /+ cast(uint) swapchains.length +/ 1,
+                pSwapchains             : /+ swapchains.ptr +/ &vulkanProps.swapchain,
                 pImageIndices           : &imageIndex
             };
 
@@ -745,7 +727,6 @@ version (VkVG) {
         VkSwapchainKHR swapchain;
         ImageBuffer[] imageBuffers;
         vkvg.Surface vkvgSurface;
-        uint currentImageIndex = -1;
 
         void destroySwapchain() {
             if (!swapchain) {
