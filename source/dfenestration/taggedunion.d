@@ -3,6 +3,8 @@ module dfenestration.taggedunion;
 import std.stdio;
 import std.meta;
 
+alias None = AliasSeq!();
+
 template EnumMembers(E)
 if (is(E == enum))
 {
@@ -15,24 +17,23 @@ if (is(E == enum))
  + A simple tagged union type.
  + Everything is inlined as an attempt to make this structure zero-cost.
  +/
-mixin template TaggedUnion(T) {
+struct TaggedUnion(Value) {
     import std.conv;
+    import std.string;
     import std.format;
 
-    alias Tag = T;
+    private alias elements = __traits(allMembers, Value);
+    private enum elementCount = elements.length;
 
-    union Value {
-        static foreach (field; EnumMembers!Tag) {
-            static if (__traits(getAttributes, field).length) {
-                mixin(__traits(getAttributes, field)[0].stringof ~ " " ~ field.stringof ~ ";");
-            }
-        }
-    }
+    mixin(`enum Tag {` ~
+        [elements].join(", ") ~
+    `}`);
 
     Tag tag;
     Value value;
 
     @disable this();
+
     pragma(inline, true)
     this(typeof(this.tupleof)) {
         this.tupleof = __traits(parameters);
@@ -41,15 +42,18 @@ mixin template TaggedUnion(T) {
     pragma(inline, true)
     string valueString() {
         label: final switch (tag) {
-            static foreach (field; EnumMembers!Tag) {
-                static if (__traits(getAttributes, field).length > 0) {
-                    case field:
-                        return "(" ~ mixin("value." ~ field.stringof).to!string() ~ ")";
-                } else {
-                    case field:
-                        return "";
+            static foreach (element; elements) {
+                static if (!is(typeof(__traits(getMember, Value, element)) == None)) {
+                    case __traits(getMember, Tag, element):
+                        return "(" ~ __traits(child, value, element).to!string() ~ ")";
                 }
             }
+            static foreach (element; elements) {
+                static if (is(typeof(__traits(getMember, Value, element)) == None)) {
+                    case __traits(getMember, Tag, element):
+                }
+            }
+                return "";
         }
     }
 
@@ -65,23 +69,23 @@ mixin template TaggedUnion(T) {
             return false;
         }
         label: final switch (tag) {
-            static foreach (field; EnumMembers!Tag) {
-                static if (__traits(getAttributes, field).length > 0) {
-                    case field:
-                        return mixin("value." ~ field.stringof) == mixin("b.value." ~ field.stringof);
+            static foreach (element; elements) {
+                static if (!is(typeof(__traits(getMember, Value, element)) == None)) {
+                    case __traits(getMember, Tag, element):
+                        return __traits(child, value, element) == __traits(child, b.value, element);
                 }
             }
-            static foreach (field; EnumMembers!Tag) {
-                static if (__traits(getAttributes, field).length == 0) {
-                    case field:
+            static foreach (element; elements) {
+                static if (is(typeof(__traits(getMember, Value, element)) == None)) {
+                    case __traits(getMember, Tag, element):
                 }
             }
                 return true;
         }
     }
 
-    static foreach (field; EnumMembers!Tag) {
-        static if (__traits(getAttributes, field).length) {
+    static foreach (element; elements) {
+        static if (!is(typeof(__traits(getMember, Value, element)) == None)) {
             mixin(
                 format!q{
 					pragma(inline, true)
@@ -97,7 +101,7 @@ mixin template TaggedUnion(T) {
 						}
 						return null;
 					}
-				}(field.stringof)
+				}(element)
             );
         } else {
             mixin(
@@ -112,7 +116,7 @@ mixin template TaggedUnion(T) {
 						Value v = void;
 						return typeof(this)(Tag.%1$s, v);
 					}
-				}(field.stringof)
+				}(element)
             );
         }
     }

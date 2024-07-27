@@ -154,6 +154,10 @@ abstract class Widget {
         );
     }
 
+    uint baselineHeight() {
+        return allocation.height;
+    }
+
     /++
      + Configure specific fields for a given container type.
      +/

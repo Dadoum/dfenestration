@@ -20,7 +20,7 @@ version (NanoVega) {
 
     class NanoVegaGLRenderer: NanoVegaBaseRenderer {
         this(Backend backend) {
-            auto nanoVegaBackend = cast(NanoVegaGLRendererCompatible) backend;
+            scope nanoVegaBackend = cast(NanoVegaGLRendererCompatible) backend;
             assert(nanoVegaBackend !is null);
 
             nanoVegaBackend.loadGL();
@@ -32,7 +32,7 @@ version (NanoVega) {
         }
 
         override void draw(BackendWindow backendWindow) {
-            auto window = cast(NanoVegaGLWindow) backendWindow;
+            scope window = cast(NanoVegaGLWindow) backendWindow;
             assert(window !is null);
 
             if (!window.setAsCurrentContextGL()) {
@@ -49,7 +49,7 @@ version (NanoVega) {
         }
 
         override void initializeWindow(BackendWindow backendWindow) {
-            auto window = cast(NanoVegaGLWindow) backendWindow;
+            scope window = cast(NanoVegaGLWindow) backendWindow;
             assert(window !is null);
 
             window.createWindowGL(200, 200);
@@ -64,14 +64,14 @@ version (NanoVega) {
         }
 
         override void cleanup(BackendWindow backendWindow) {
-            auto window = cast(NanoVegaGLWindow) backendWindow;
+            scope window = cast(NanoVegaGLWindow) backendWindow;
             assert(window !is null);
 
             window.cleanupGL();
         }
 
         override void resize(BackendWindow backendWindow, uint width, uint height) {
-            auto window = cast(NanoVegaGLWindow) backendWindow;
+            scope window = cast(NanoVegaGLWindow) backendWindow;
             assert(window !is null);
 
             window.resizeGL(width, height);

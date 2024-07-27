@@ -6,17 +6,21 @@ import std.conv;
 import std.datetime;
 import std.exception;
 import std.format;
+import std.string;
 import std.logger;
 import std.process;
 import std.traits;
 
-import libasync;
+import bindbc.hb;
+import bindbc.freetype;
 
-import dfenestration.linkedlist;
+import libasync;
 
 import dfenestration.primitives;
 import dfenestration.renderers.context;
 import dfenestration.renderers.renderer;
+import dfenestration.renderers.text.font;
+import dfenestration.renderers.text.textlayouter;
 import dfenestration.widgets.window;
 
 enum backendEnvironmentVariable = "DFBACKEND";
@@ -24,11 +28,38 @@ enum rendererEnvironmentVariable = "DFRENDERER";
 
 abstract class Backend {
     EventLoop _eventLoop;
+    FT_Library _freetypeLibrary;
+
+    Face _defaultFace;
+    Face _monospaceFace;
 
     EventLoop eventLoop() => _eventLoop;
 
+    Face createDefaultFace() => _defaultFace;
+    Face createMonospaceFace() => _monospaceFace;
+
     this() {
         _eventLoop = new EventLoop();
+        FTSupport ftStatus = loadFreeType();
+        HBSupport hbStatus = loadHarfBuzz();
+
+        if (ftStatus <= FTSupport.badLibrary || hbStatus <= HBSupport.badLibrary) {
+            throw new MissingLibraryException(
+                "Cannot load FreeType or HarfBuzz (identified FreeType: %s, identified HarfBuzz: %s)".format(ftStatus, hbStatus)
+            );
+        }
+
+        FT_Init_FreeType(&_freetypeLibrary);
+
+        _defaultFace = loadFaceFromFile("/usr/share/fonts/liberation-sans/LiberationSans-Regular.ttf");
+        _monospaceFace = loadFaceFromFile("/usr/share/fonts/liberation-mono/LiberationMono-Regular.ttf");
+    }
+
+    ~this() {
+        if (!_freetypeLibrary) {
+            return;
+        }
+        FT_Done_FreeType(_freetypeLibrary);
     }
 
     final void roundtrip() {
@@ -50,6 +81,23 @@ abstract class Backend {
     }
 
     abstract BackendWindow createBackendWindow(Window window);
+
+    final Face loadFaceFromFile(string path) {
+        FT_Open_Args openArgs;
+        openArgs.flags = FT_OPEN_PATHNAME;
+        openArgs.pathname = cast(char*) path.toStringz();
+        openArgs.stream   = null;
+        return Face(_freetypeLibrary, openArgs);
+    }
+
+    final Face loadFaceFromMemory(ubyte[] data) {
+        FT_Open_Args openArgs;
+        openArgs.flags = FT_OPEN_MEMORY;
+        openArgs.memory_base = data.ptr;
+        openArgs.memory_size = data.length;
+        openArgs.stream   = null;
+        return Face(_freetypeLibrary, openArgs, data);
+    }
 }
 
 interface BackendWindow {
@@ -185,6 +233,12 @@ Backend bestBackendForRenderer(RendererT: Renderer)(bool ignoreEnvironment = fal
     }
 
     return bestBackend;
+}
+
+class MissingLibraryException: Exception {
+    this(string msg, string file = __FILE__, int line = __LINE__) {
+        super(msg, file, line);
+    }
 }
 
 class NoBackendException: Exception {

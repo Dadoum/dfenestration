@@ -14,11 +14,11 @@ version (NanoVega) {
             auto window = cast(NanoVegaBaseWindow) backendWindow;
             assert(window !is null);
 
-            auto nvgContext = window.nvgContext;
+            scope nvgContext = window.nvgContext;
             {
                 nvgContext.beginFrame(window.canvasSize.tupleof);
-                nvgContext.scale(window.scaling, window.scaling);
                 scope(exit) nvgContext.endFrame();
+                nvgContext.scale(window.scaling, window.scaling);
 
                 window.paint(new NanoVegaContext(nvgContext));
             }

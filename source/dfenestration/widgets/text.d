@@ -29,19 +29,14 @@ class Text: Widget {
     }
 
     override void draw(Context c) {
-        // FIXME remove background
-        c.sourceRgb(1, 1, 1);
-        c.rectangle(0, 0, allocation.size.tupleof);
-        c.fill();
-
         /// TODO: text shaping
         c.sourceRgb(1, 0, 1);
         // c.rectangle(0, 0, allocation.size.tupleof);
         // c.fill();
-        c.selectFontPath = "/usr/share/fonts/liberation-mono/LiberationMono-Bold.ttf";
+        // c.selectFontPath = "/usr/share/fonts/liberation-mono/LiberationMono-Bold.ttf";
 
         c.moveTo(0, 0);
-        c.showText(text);
+        // c.showText(text);
         c.fill();
     }
 }

@@ -1,9 +1,13 @@
 {
 	"fileVersion": 1,
 	"versions": {
-		"arsd-official": {"version":"0ea7ff4439bc83c77b184747ac96ee11e4e8d546","repository":"git+https://github.com/Dadoum/arsd.git"},
+		"arsd-official": {"version":"32c2d2c5baf44afd864bac723a231ffc92df8986","repository":"git+https://github.com/Dadoum/arsd.git"},
+		"aurora-directx": "12.1.2+10.0.17763.0",
+		"bindbc-common": "0.1.6",
+		"bindbc-freetype": "1.2.6",
 		"bindbc-gles": "0.0.4",
-		"bindbc-loader": "1.0.3",
+		"bindbc-harfbuzz": "0.2.1",
+		"bindbc-loader": "1.1.5",
 		"bindbc-opengl": "1.1.0",
 		"derelict-util": "2.0.6",
 		"dynamic-loader": {"version":"1d9eaa74e7d54c395ce4abfc15a9654ebfd9c7d2","repository":"git+https://github.com/Dadoum/dynamicloader.git"},

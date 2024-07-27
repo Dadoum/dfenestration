@@ -325,24 +325,21 @@ version (Wayland):
         WlSurface surface;
         XdgSurface xdgSurface;
 
-        struct XdgWindow {
-            enum _ {
-                none,
-                @XdgToplevel toplevel,
-                @XdgPopup popup,
-            }
-            mixin TaggedUnion!_;
+        union _XdgWindow {
+            None none;
+            XdgToplevel toplevel;
+            XdgPopup popup;
         }
+        alias XdgWindow = TaggedUnion!_XdgWindow;
         XdgWindow xdgWindow = XdgWindow.none;
 
-        struct WaylandDecoration {
-            enum _ {
-                none,
-                @OrgKdeKwinServerDecoration kde,
-                @ZxdgToplevelDecorationV1 xdg
-            }
-            mixin TaggedUnion!_;
+        union _WaylandDecoration {
+            None none;
+            OrgKdeKwinServerDecoration kde;
+            ZxdgToplevelDecorationV1 xdg;
         }
+        alias WaylandDecoration = TaggedUnion!_WaylandDecoration;
+
         WaylandDecoration decoration = WaylandDecoration.none;
         WpFractionalScaleV1 fractionalScale;
 
@@ -378,21 +375,22 @@ version (Wayland):
             }
 
             if (auto kdeDecorationManager = backend.kdeDecorationManager) {
-                info("Decorations supported through KDE");
+                trace("Decorations supported through KDE");
                 auto kdeDecoration = kdeDecorationManager.create(surface);
                 kdeDecoration.onMode = (decorationManager, mode) {
                     decorated = mode == OrgKdeKwinServerDecoration.Mode.server;
-                    size = size;
+                    window.onResize(size);
                 };
 
                 // kdeDecoration.requestMode(OrgKdeKwinServerDecoration.Mode.none);
                 decoration = WaylandDecoration.kde(kdeDecoration);
             } else if (auto xdgDecorationManager = backend.xdgDecorationManager) {
-                info("Decorations supported through XDG");
+                trace("Decorations supported through XDG");
                 if (auto toplevel = xdgWindow.toplevel) {
                     auto xdgDecoration = xdgDecorationManager.getToplevelDecoration(*toplevel);
                     xdgDecoration.onConfigure = (decorationManager, mode) {
                         decorated = mode == ZxdgToplevelDecorationV1.Mode.serverSide;
+                        window.onResize(size);
                     };
 
                     // xdgDecoration.setMode(ZxdgToplevelDecorationV1.Mode.clientSide);
@@ -414,7 +412,6 @@ version (Wayland):
 
             renderer.initializeWindow(this);
             backend.display.roundtrip();
-            // backend.display.dispatch();
 
             if (auto toplevel = xdgWindow.toplevel) {
                 toplevel.onConfigure = &onToplevelConfigure;
@@ -423,7 +420,7 @@ version (Wayland):
             // }
 
             reconfigure();
-            invalidate();
+            renderer.draw(this);
         }
 
         void reconfigure() {
@@ -447,12 +444,12 @@ version (Wayland):
 
         void onToplevelConfigure(XdgToplevel tl, int width, int height, wl_array* statesC) {
             assert(shown, "Window is not shown but it got configured.");
-            auto newSize = Size(cast(uint) width, cast(uint) height).unscale(scaling);
+            scope newSize = Size(cast(uint) width, cast(uint) height).unscale(scaling);
             if (newSize != size) {
                 size = newSize;
             }
 
-            auto states = (cast(XdgToplevel.State*) statesC.data)[0..statesC.size / XdgToplevel.State.sizeof];
+            scope states = (cast(XdgToplevel.State*) statesC.data)[0..statesC.size / XdgToplevel.State.sizeof];
 
             bool isMaximized = false;
             bool isActivated = false; // which we'll treat as isFocused as focus should treated separately for widgets
@@ -490,11 +487,12 @@ version (Wayland):
             scope(exit) context.restore();
 
             if (useEmulatedResizeBorders) {
-                context.sourceRgba(0, 0, 0, .15);
-                context.dropShadow(resizeMarginSize, resizeMarginSize, size.width, size.height, 0, resizeMarginSize);
+                // context.sourceRgba(0, 0, 0, .15);
+                // context.dropShadow(resizeMarginSize, resizeMarginSize, size.width, size.height, 0, resizeMarginSize);
                 context.translate(resizeMarginSize, resizeMarginSize);
-                context.rectangle(0, 0, size.tupleof);
-                context.clip();
+                info(_trueSize);
+                // context.rectangle(0, 0, size.tupleof);
+                // context.clip();
             }
 
             window.paint(context);
@@ -506,27 +504,22 @@ version (Wayland):
                 return;
             }
 
-            info("invalidate");
             dirty = true;
             surface.frame().onDone(&onRedraw);
             surface.commit();
         }
 
         void onRedraw(WlCallback callback, uint callbackData) {
-            info("aa");
             renderer.draw(this);
             dirty = false;
         }
 
-        struct WaylandMousePos {
-            enum _ {
-                outsideWindow,
-                @Point insideWindow,
-                @ResizeEdge resizeEdge
-            }
-            mixin TaggedUnion!_;
+        union _WaylandMousePos {
+            None outsideWindow;
+            Point insideWindow;
+            ResizeEdge resizeEdge;
         }
-
+        alias WaylandMousePos = TaggedUnion!_WaylandMousePos;
         WaylandMousePos mousePos = WaylandMousePos.outsideWindow;
         Role _role;
 

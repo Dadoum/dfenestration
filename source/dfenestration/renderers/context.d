@@ -1,5 +1,8 @@
 module dfenestration.renderers.context;
 
+import bindbc.freetype;
+import bindbc.hb;
+
 /++
  + Almost replicates Cairo's API.
  +/
@@ -57,10 +60,4 @@ interface Context {
     void scale(float sx, float sy);
     void rotate(float radians);
     // void identityMatrix();
-
-    // TODO: Replace all of that with Harfbuzz
-    void selectFontFace(string name);
-    void selectFontPath(string path);
-    void fontSize(uint size);
-    void showText(string text);
 }

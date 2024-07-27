@@ -11,7 +11,7 @@ import dfenestration.primitives;
 
 int main() {
 	import std.logger;
-	(cast()sharedLog).logLevel = LogLevel.trace;
+	(cast() sharedLog).logLevel = LogLevel.trace;
 
 	auto window =
 		new Window()
@@ -22,11 +22,11 @@ int main() {
 		];
 
 	// force client-side decorations
-	import dfenestration.backends.wayland;
-	if (auto wayland = cast(WaylandBackend) window.backend) {
-		wayland.xdgDecorationManager = null;
-		wayland.kdeDecorationManager = null;
-	}
+	// import dfenestration.backends.wayland;
+	// if (auto wayland = cast(WaylandBackend) window.backend) {
+	// 	wayland.xdgDecorationManager = null;
+	// 	wayland.kdeDecorationManager = null;
+	// }
 
 	return window.run();
 }

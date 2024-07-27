@@ -1,10 +1,11 @@
 module dfenestration.renderers.vkvg.renderer;
 
+import std.meta;
+
 version (VkVG) {
     import std.algorithm;
     import std.array;
     import std.logger;
-    import std.meta;
     import std.string;
 
     import erupted;
@@ -661,7 +662,10 @@ version (VkVG) {
                 throw new VulkanException("Cannot get the next frame!");
             }
 
-            window.paint(new VkVGContext(vulkanProps.vkvgSurface));
+            {
+                scope context = new VkVGContext(vulkanProps.vkvgSurface);
+                window.paint(context);
+            }
 
             // VkSemaphore[] waitSemaphores = [ vulkanProps.presentationSemaphore ];
             // VkSemaphore[] signalSemaphores = [ vulkanProps.graphicsSemaphore ];
@@ -780,4 +784,5 @@ version (VkVG) {
 } else {
     alias VkVGRenderer = AliasSeq!();
     alias VkVGRendererCompatible = AliasSeq!();
+    alias VkVGWindow = AliasSeq!();
 }

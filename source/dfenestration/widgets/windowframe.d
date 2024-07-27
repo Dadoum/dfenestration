@@ -24,7 +24,7 @@ class WindowFrame: Bin {
             new WindowHandle() [
                 new Row() [
                     // TODO: use EllipsisText
-                    titleText = new Text("DEVELOPER ERROR - SET THE TITLE FIRST").layoutProperties!Row(/+ expand +/ true),
+                    titleText = new Text("DFENESTRATION ERROR - SET THE TITLE FIRST").layoutProperties!Row(/+ expand +/ true),
                     // new Spacer().layoutProperties!Row(/+ expand +/ true),
                     new Test().size(Size(24, 24))
                 ]
@@ -44,9 +44,9 @@ class WindowFrame: Bin {
     }
 
     override void draw(Context context) {
-        // context.sourceRgb(1, 1, 1);
-        // context.rectangle(0, 0, allocation.size.tupleof);
-        // context.fill();
+        context.sourceRgb(1, 1, 1);
+        context.rectangle(0, 0, allocation.size.tupleof);
+        context.fill();
     }
 
     string title() { return titleText.text; }

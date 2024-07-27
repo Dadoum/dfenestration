@@ -6,7 +6,7 @@ import dfenestration.renderers.context;
 
 import arsd.nanovega;
 
-version = NVGClipHack;
+// version = NVGClipHack;
 
 class NanoVegaContext: Context {
     NVGContext context;
