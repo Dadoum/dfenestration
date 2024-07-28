@@ -75,8 +75,6 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
         }
     }
 
-    override void draw(Context context) => super.draw(context);
-
     /++
      + Request part of the widget to be redrawn.
      +/

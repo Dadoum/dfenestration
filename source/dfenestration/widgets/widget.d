@@ -22,8 +22,7 @@ abstract class Widget {
     }
     mixin State!_;
 
-    void draw(Context context) {}
-    void draw(Context context, Rectangle rectangle) => draw(context);
+    void draw(Context context, Rectangle rectangle) {}
 
     /++
      + Called when the widget gets hovered, with the relative hover location.

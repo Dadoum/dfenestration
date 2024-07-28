@@ -28,7 +28,7 @@ class Text: Widget {
         naturalHeight = 20;
     }
 
-    override void draw(Context c) {
+    override void draw(Context c, Rectangle rectangle) {
         /// TODO: text shaping
         c.sourceRgb(1, 0, 1);
         // c.rectangle(0, 0, allocation.size.tupleof);

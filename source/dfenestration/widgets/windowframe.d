@@ -53,10 +53,11 @@ class WindowFrame: Bin {
         return this;
     }
 
-    override void draw(Context context) {
+    override void draw(Context context, Rectangle rectangle) {
         context.sourceRgb(1, 1, 1);
         context.rectangle(0, 0, allocation.size.tupleof);
         context.fill();
+        super.draw(context, rectangle);
     }
 
     string title() { return titleText.text; }

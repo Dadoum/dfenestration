@@ -66,13 +66,11 @@ class Button: Container!Widget {
         return true;
     }
 
-    import std.logger;
     override void onPress(Point location, MouseButton button) {
-        info("click");
+
     }
 
-    override void draw(Context context) {
-        info("tdadada");
+    override void draw(Context context, Rectangle rectangle) {
         auto allocation = allocation();
 
         context.rectangle(0, 0, allocation.size.tupleof);
@@ -85,7 +83,7 @@ class Button: Container!Widget {
         }
         context.fill();
 
-        super.draw(context);
+        super.draw(context, rectangle);
     }
 }
 

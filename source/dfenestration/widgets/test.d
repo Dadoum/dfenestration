@@ -42,7 +42,7 @@ class Test: Widget {
         return sizeToRequest;
     }
 
-    override void draw(Context context) {
+    override void draw(Context context, Rectangle rectangle) {
         auto allocation = allocation();
         context.sourceRgb(0, 0, 0);
         context.rectangle(0, 0, allocation.width, allocation.height);
