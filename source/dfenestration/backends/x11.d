@@ -1,6 +1,6 @@
-module dfenestration.backends.xcb;
+module dfenestration.backends.x11;
 
-version (Xcb):
+version (X11):
 
 import std.datetime;
 import std.exception;
@@ -11,8 +11,7 @@ import std.traits: ReturnType, Parameters, isIntegral;
 
 import libasync;
 
-import xcb.xcb;
-import xcb.icccm;
+import x11.Xlib;
 
 import dfenestration.backends.backend;
 import dfenestration.primitives;
@@ -22,44 +21,41 @@ import dfenestration.renderers.context;
 import dfenestration.renderers.renderer;
 import dfenestration.widgets.window;
 
-class XcbBackend: Backend, VkVGRendererCompatible {
-    xcb_connection_t* connection;
-    xcb_screen_t* screen;
-    xcb_visualid_t visual;
+class X11Backend: Backend, VkVGRendererCompatible {
+    Display* display;
+    int screen;
+    Visual visual;
 
     Renderer renderer;
-    XcbWindow[xcb_window_t] xcbWindows;
+    // XcbWindow[xcb_window_t] xcbWindows;
 
     this() {
-        connection = xcb_connect(null, null);
-        if (connection == null) {
-            throw new XcbException("Can't connect to X server!");
+        display = XOpenDisplay(null);
+        if (display == null) {
+            throw new XcbException("Can't connect to X server! Hopefully it printed something before in the console to help.");
         }
 
-        auto setup = xcb_get_setup(connection);
-        screen = setup.xcb_setup_roots_iterator().data;
-
-        visual = screen.root_visual;
+        screen = DefaultScreen(display);
+        visual = DefaultVisual(display, screen);
 
         renderer = this.buildRenderer();
 
-        AsyncEvent event = new AsyncEvent(super._eventLoop, xcb_get_file_descriptor(connection));
+        AsyncEvent event = new AsyncEvent(eventLoop, ConnectionNumber(connection));
         event.run((code) => roundtrip());
     }
 
     final void roundtrip() {
         xcb_flush(connection);
-        while (auto event = xcb_poll_for_event(connection)) {
+        while (auto event = XNextEvent()) {
             if (!event.response_type) {
                 error("X11 error: ", (cast(xcb_generic_error_t*) event).error_code.x11ErrorDescription());
                 return;
             }
-            info("event time!");
 
             switch (event.response_type) {
                 case XCB_EXPOSE:
                     auto event_cm = cast(xcb_expose_event_t*) event;
-                    info("EXPOSE!");
+                    // info("EXPOSE!");
                     renderer.draw(xcbWindows[event_cm.window]);
                     break;
                 case XCB_CLIENT_MESSAGE | 1 << 7:

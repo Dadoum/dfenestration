@@ -18,8 +18,11 @@ dependency "bindbc-gles" version="~>0.0.1"
 sourcePaths "external/wayland-protocols"
 versions "Wayland"
 
-// dependency "xcb-d" version="~>2.1.1+1.11.1"
-// versions "Xcb"
+dependency "xcb-d" version="~>2.1.1+1.11.1"
+versions "Xcb"
+
+// dependency "x11d" version="~>1.0.24"
+// versions "X11"
 
 dependency "erupted" version="~>2.1.98+v1.3.248"
 sourcePaths "external/vkvg"

@@ -305,6 +305,18 @@ version (VkVG) {
             vkCreateSemaphore(device, &semaphoreCreateInfo, null, &rendererProperties.graphicsSemaphore).vkEnforce();
             vkCreateSemaphore(device, &semaphoreCreateInfo, null, &rendererProperties.presentationSemaphore).vkEnforce();
 
+            VkSurfaceTransformFlagBitsKHR preTransform =
+                (capabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+                ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
+                : capabilities.currentTransform;
+
+            VkCompositeAlphaFlagBitsKHR compositeAlpha =
+                (capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR)
+                ? VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR
+                : (capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR)
+                ? VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR
+                : VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+
             VkSwapchainCreateInfoKHR swapchainCreateInfo = {
                 surface                 : surface,
                 minImageCount           : imageBufferCount,
@@ -315,8 +327,8 @@ version (VkVG) {
                 imageSharingMode        : VK_SHARING_MODE_EXCLUSIVE,
                 queueFamilyIndexCount   : 1,
                 // pQueueFamilyIndices     : (uint32_t[]) { 0 },
-                preTransform            : VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
-                compositeAlpha          : VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+                preTransform            : preTransform,
+                compositeAlpha          : compositeAlpha,
                 presentMode             : VK_PRESENT_MODE_FIFO_KHR, // It should always be supported.
             };
             rendererProperties.swapchainCreateInfo = swapchainCreateInfo;
@@ -339,17 +351,25 @@ version (VkVG) {
                 &commandBufferAllocateInfo,
                 rendererProperties.commandBuffers.ptr
             ).vkEnforce();
+
+            createSwapchain(window, window.canvasSize.tupleof);
         }
 
         bool createSwapchain(VkVGWindow window, uint width, uint height) {
             auto vkvgRendererProperties = window.vkvgRendererProperties();
             if (!vkvgRendererProperties.surface) {
                 // the window has probably not been initialized, it could be hidden or something.
-                trace("Draw has been asked while the window doesn't exist");
+                warning("Draw has been asked while the window doesn't exist");
                 return false;
             }
 
             vkvgRendererProperties.destroySwapchain();
+
+            VkSurfaceCapabilitiesKHR capabilities;
+            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, vkvgRendererProperties.surface, &capabilities).vkEnforce();
+
+            width = min(max(width, capabilities.minImageExtent.width), capabilities.maxImageExtent.width);
+            height = min(max(height, capabilities.minImageExtent.height), capabilities.maxImageExtent.height);
 
             auto scaling = window.scaling();
             uint hdpy = cast(uint) (96 * scaling);

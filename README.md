@@ -29,7 +29,7 @@ clipping operation.
 
 Wayland with relatively recent protocols.
 
-X11 through libxcb (TODO)
+X11 (TODO)
 
 ## Roadmap
 
@@ -37,7 +37,7 @@ X11 through libxcb (TODO)
 
   |                     | Software | OpenGL      | Vulkan      | Metal |
   |---------------------|----------|-------------|-------------|-------|
-  | Wayland (xdg-shell) |          | OK          | wip         | -     |
+  | Wayland (xdg-shell) |          | OK          | OK          | -     |
   | X11                 |          | wip         |             | -     |
   | Windows             |          |             |             | -     |
   | macOS               |          | not planned | not planned |       |
