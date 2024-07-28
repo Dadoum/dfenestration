@@ -26,7 +26,6 @@ version (VkVG) {
         VkDevice device;
         VkPhysicalDevice physicalDevice;
         VkQueue graphicsQueue;
-        VkCommandPool commandPool;
 
         Device vkvgDevice;
 
@@ -229,22 +228,12 @@ version (VkVG) {
             vkCreateDevice(physicalDevice, &deviceInfo, null, &device).vkEnforce();
             loadDeviceLevelFunctions(device);
 
-            VkCommandPoolCreateInfo commandPoolCreateInfo = {
-                flags               : 0,
-                queueFamilyIndex    : graphicsQueueIndex
-            };
-
-            vkCreateCommandPool(device, &commandPoolCreateInfo, null, &commandPool).vkEnforce();
-
             vkGetDeviceQueue(device, graphicsQueueIndex, 0, &graphicsQueue);
 
             vkvgDevice = new Device(instance, physicalDevice, device, graphicsQueueIndex, 0, VK_SAMPLE_COUNT_8_BIT, false);
         }
 
         ~this() {
-            if (commandPool) {
-                vkDestroyCommandPool(device, commandPool, null);
-            }
             destroy(vkvgDevice);
             if (device) {
                 vkDestroyDevice(device, null);
@@ -313,7 +302,9 @@ version (VkVG) {
                 imageBufferCount = capabilities.maxImageCount;
             }
 
-            VkSemaphoreCreateInfo semaphoreCreateInfo;
+            VkSemaphoreCreateInfo semaphoreCreateInfo = {
+
+            };
 
             vkCreateSemaphore(device, &semaphoreCreateInfo, null, &rendererProperties.graphicsSemaphore).vkEnforce();
             vkCreateSemaphore(device, &semaphoreCreateInfo, null, &rendererProperties.presentationSemaphore).vkEnforce();
@@ -333,6 +324,25 @@ version (VkVG) {
                 presentMode             : VK_PRESENT_MODE_FIFO_KHR, // It should always be supported.
             };
             rendererProperties.swapchainCreateInfo = swapchainCreateInfo;
+
+            VkCommandPoolCreateInfo commandPoolCreateInfo = {
+                flags               : 0,
+                queueFamilyIndex    : graphicsQueueIndex
+            };
+            vkCreateCommandPool(device, &commandPoolCreateInfo, null, &rendererProperties.commandPool).vkEnforce();
+
+            rendererProperties.commandBuffers.length = imageBufferCount;
+            VkCommandBufferAllocateInfo commandBufferAllocateInfo = {
+                commandPool         : rendererProperties.commandPool,
+                level               : VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                commandBufferCount  : imageBufferCount
+            };
+
+            vkAllocateCommandBuffers(
+                device,
+                &commandBufferAllocateInfo,
+                rendererProperties.commandBuffers.ptr
+            ).vkEnforce();
         }
 
         bool createSwapchain(VkVGWindow window, uint width, uint height) {
@@ -344,6 +354,8 @@ version (VkVG) {
             }
 
             vkvgRendererProperties.destroySwapchain();
+
+            vkvgRendererProperties.vkvgSurface = new Surface(vkvgDevice, width, height); // TODO fractional scaling.
 
             VkSwapchainCreateInfoKHR swapchainCreateInfo = vkvgRendererProperties.swapchainCreateInfo;
             swapchainCreateInfo.imageExtent = VkExtent2D(width, height);
@@ -372,21 +384,6 @@ version (VkVG) {
                 swapchain,
                 &imageCount,
                 images.ptr
-            ).vkEnforce();
-
-            vkvgRendererProperties.vkvgSurface = new Surface(vkvgDevice, width, height); // TODO fractional scaling.
-
-            vkvgRendererProperties.commandBuffers.length = imageCount;
-            VkCommandBufferAllocateInfo commandBufferAllocateInfo = {
-                commandPool         : commandPool,
-                level               : VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-                commandBufferCount  : imageCount
-            };
-
-            vkAllocateCommandBuffers(
-                device,
-                &commandBufferAllocateInfo,
-                vkvgRendererProperties.commandBuffers.ptr
             ).vkEnforce();
 
             auto sourceImage = vkvgRendererProperties.vkvgSurface.vkImage();
@@ -641,8 +638,6 @@ version (VkVG) {
                 }
             }
 
-            vkDeviceWaitIdle(device);
-
             VkResult result = vkAcquireNextImageKHR(
                 device,
                 vulkanProps.swapchain,
@@ -695,6 +690,7 @@ version (VkVG) {
             };
 
             vkQueuePresentKHR(graphicsQueue, &presentInfo).vkEnforce();
+            vkQueueWaitIdle(graphicsQueue);
         }
     }
 
@@ -720,6 +716,7 @@ version (VkVG) {
             VkImageView view;
         }
 
+        VkCommandPool commandPool;
         VkCommandBuffer[] commandBuffers;
 
         VkSemaphore graphicsSemaphore;
@@ -740,14 +737,10 @@ version (VkVG) {
             destroy(vkvgSurface);
             vkDeviceWaitIdle(renderer.device).vkEnforce();
             vkDestroySwapchainKHR(renderer.device, swapchain, null);
-            swapchain = null;
+            vkQueueWaitIdle(renderer.graphicsQueue).vkEnforce();
+            vkResetCommandPool(renderer.device, commandPool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT).vkEnforce();
 
-            foreach (imageBuffer; imageBuffers) {
-                vkDestroyImageView(renderer.device, imageBuffer.view, null);
-                // FIXME why it doesn't work??
-                // vkDestroyImage(renderer.device, imageBuffer.image, null);
-            }
-            imageBuffers.length = 0;
+            swapchain = null;
         }
 
         void dispose() {

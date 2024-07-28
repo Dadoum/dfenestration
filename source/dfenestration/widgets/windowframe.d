@@ -20,15 +20,19 @@ class WindowFrame: Bin {
     Bin contentBin;
 
     this() {
-        import dfenestration.widgets.test;;
+        import dfenestration.widgets.test;
+
         super.content = new Column() [
             new WindowHandle() [
                 new Row() [
                     // TODO: use EllipsisText
                     titleText = new Text("DFENESTRATION ERROR - SET THE TITLE FIRST").layoutProperties!Row(/+ expand +/ true),
                     // new Spacer().layoutProperties!Row(/+ expand +/ true),
-                    new Button()
-                        .spacing(2) [
+                    // new class Button { override void onPress(Point location, MouseButton button) => window.minimize(); } [
+                    //     new Test()
+                    //         .size(Size(24, 24))
+                    // ],
+                    new class Button { override void onPress(Point location, MouseButton button) => window.close(); } [
                         new Test()
                             .size(Size(24, 24))
                     ]

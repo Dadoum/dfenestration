@@ -47,8 +47,11 @@ class Test: Widget {
         context.sourceRgb(0, 0, 0);
         context.rectangle(0, 0, allocation.width, allocation.height);
         context.fillPreserve();
+        // context.sourceRgb(1, 0, 1);
+        // context.lineWidth(1);
+        // context.stroke();
         context.sourceRgb(1, 1, 1);
-        context.lineWidth(2);
+        context.lineWidth(1);
         context.stroke();
         context.moveTo(0, 0);
         context.lineTo(allocation.width, allocation.height);

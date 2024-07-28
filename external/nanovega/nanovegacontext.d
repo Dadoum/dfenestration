@@ -6,8 +6,6 @@ import dfenestration.renderers.context;
 
 import arsd.nanovega;
 
-// version = NVGClipHack;
-
 class NanoVegaContext: Context {
     NVGContext context;
 
@@ -19,7 +17,6 @@ class NanoVegaContext: Context {
     // void flush() => context.flush(__traits(parameters));
 
     void newPath() {
-        version (NVGClipHack) nvgClipWorkaround.reset();
         context.newPath(__traits(parameters));
     }
     void closePath() => context.closePath(__traits(parameters));
@@ -34,34 +31,22 @@ class NanoVegaContext: Context {
     float x;
     float y;
     void lineTo(float x, float y) {
-        version (NVGClipHack) {
-            nvgClipWorkaround = Rect(0, 0, 0, 0);
-        }
         this.x = x;
         this.y = y;
         context.lineTo(__traits(parameters));
     }
     void relLineTo(float dx, float dy) {
-        version (NVGClipHack) {
-            nvgClipWorkaround = Rect(0, 0, 0, 0);
-        }
         this.x = x + dx;
         this.y = y + dy;
         context.lineTo(this.x, this.y);
     }
 
     void moveTo(float x, float y) {
-        version (NVGClipHack) {
-            nvgClipWorkaround = Rect(0, 0, 0, 0);
-        }
         this.x = x;
         this.y = y;
         context.moveTo(__traits(parameters));
     }
     void relMoveTo(float dx, float dy) {
-        version (NVGClipHack) {
-            nvgClipWorkaround = Rect(0, 0, 0, 0);
-        }
         this.x = x + dx;
         this.y = y + dy;
         context.lineTo(this.x, this.y);
@@ -71,43 +56,18 @@ class NanoVegaContext: Context {
     // void arcNegative(float xc, float yc, float radius, float a1, float a2) => context.arcNegative(__traits(parameters));
 
     void curveTo(float x1, float y1, float x2, float y2, float x3, float y3) {
-        version (NVGClipHack) {
-            nvgClipWorkaround = Rect(0, 0, 0, 0);
-        }
         this.x = x3;
         this.y = y3;
         context.bezierTo(__traits(parameters));
     }
     void relCurveTo(float dx1, float dy1, float dx2, float dy2, float dx3, float dy3) {
-        version (NVGClipHack) {
-            nvgClipWorkaround = Rect(0, 0, 0, 0);
-        }
         context.bezierTo(x + dx1, y + dy1, x + dx2, y + dy2, dx3 + x, dy3 + y);
         this.x = x + dx3;
         this.y = y + dy3;
     }
 
     // void quadraticTo(float x1, float y1, float x2, float y2) => context.quadTo(__traits(parameters));
-    version (NVGClipHack) {
-        struct Rect {
-            float x = -1; float y = -1; float w = -1; float h = -1;
-            void reset() {
-                this = Rect.init;
-            }
-            bool isInit() => this != Rect.init;
-        }
-        Rect nvgClipWorkaround;
-    }
     void rectangle(float x, float y, float w, float h) {
-        version (NVGClipHack) {
-            if (nvgClipWorkaround.isInit()) {
-                error("Clip attempted with multiple rectangles: cannot apply the hacky fix.");
-                nvgClipWorkaround = Rect(0, 0, 0, 0);
-            } else {
-                // HACK: works for one rectangle, the performance penalty for more than one is too much.
-                nvgClipWorkaround = Rect(x, y, w, h);
-            }
-        }
         context.rect(__traits(parameters));
     }
 
@@ -145,21 +105,6 @@ class NanoVegaContext: Context {
     // void clear() => context.clear(__traits(parameters));
 
     void clip() {
-        version (NVGClipHack) {
-            if (nvgClipWorkaround.isInit() && nvgClipWorkaround != Rect(0, 0, 0, 0)) {
-                // info(nvgClipWorkaround);
-                context.newPath();
-                // nvgClipWorkaround.w += 1;
-                // nvgClipWorkaround.y -= 1;
-                // nvgClipWorkaround.h -= 1;
-                context.rect(
-                    nvgClipWorkaround.x + 1,
-                    nvgClipWorkaround.y,
-                    nvgClipWorkaround.w - 1,
-                    nvgClipWorkaround.h - 1
-                );
-            }
-        }
         context.clip(__traits(parameters));
         newPath();
     }
@@ -187,42 +132,19 @@ class NanoVegaContext: Context {
     }
 
     void save() {
-        version (NVGClipHack) {
-            nvgClipWorkaround.reset();
-        }
         context.save(__traits(parameters));
     }
     void restore() {
-        version (NVGClipHack) {
-            nvgClipWorkaround.reset();
-        }
         context.restore(__traits(parameters));
     }
 
     void translate(float dx, float dy) {
-        version (NVGClipHack) {
-            if (nvgClipWorkaround.isInit()) {
-                nvgClipWorkaround.x += dx;
-                nvgClipWorkaround.y += dy;
-            }
-        }
         context.translate(__traits(parameters));
     }
     void scale(float sx, float sy) {
-        version (NVGClipHack) {
-            if (nvgClipWorkaround.isInit()) {
-                nvgClipWorkaround.x *= sx;
-                nvgClipWorkaround.y *= sy;
-                nvgClipWorkaround.w *= sx;
-                nvgClipWorkaround.h *= sy;
-            }
-        }
         context.scale(__traits(parameters));
     }
     void rotate(float radians) {
-        version (NVGClipHack) {
-            nvgClipWorkaround.reset();
-        }
         context.rotate(__traits(parameters));
     }
     // void identityMatrix();

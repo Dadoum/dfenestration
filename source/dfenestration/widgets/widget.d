@@ -166,23 +166,26 @@ struct StateSetter {}
 
 mixin template State() {
     import std.traits;
+    static if (!is(__stateDone)) {
+        private enum __stateDone;
 
-    static if (is(typeof(this) BaseClass == super)) {
-        static foreach (member; __traits(allMembers, BaseClass[0])) {
-            static foreach (overload; __traits(getOverloads, BaseClass[0], member)) {
-                static if (hasUDA!(overload, StateSetter)) {
-                    mixin(`
-                    @StateSetter override typeof(this) ` ~ __traits(identifier, overload) ~ `(Parameters!overload params) {
-                        __traits(child, super, overload)(params);
-                        return this;
+        static if (is(typeof(this) BaseClass == super)) {
+            static foreach (member; __traits(allMembers, BaseClass[0])) {
+                static foreach (overload; __traits(getOverloads, BaseClass[0], member)) {
+                    static if (hasUDA!(overload, StateSetter)) {
+                        mixin(`
+                        @StateSetter override typeof(this) ` ~ __traits(identifier, overload) ~ `(Parameters!overload params) {
+                            __traits(child, super, overload)(params);
+                            return this;
+                        }
+                        `);
+                    } else static if (hasUDA!(overload, StateGetter)) {
+                        mixin(`
+                        @StateGetter override ReturnType!(typeof(overload)) ` ~ __traits(identifier, overload) ~ `() {
+                            return __traits(child, super, overload)();
+                        }
+                        `);
                     }
-                    `);
-                } else static if (hasUDA!(overload, StateGetter)) {
-                    mixin(`
-                    @StateGetter override ReturnType!(typeof(overload)) ` ~ __traits(identifier, overload) ~ `() {
-                        return __traits(child, super, overload)();
-                    }
-                    `);
                 }
             }
         }

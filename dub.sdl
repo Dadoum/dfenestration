@@ -21,9 +21,9 @@ versions "Wayland"
 // dependency "xcb-d" version="~>2.1.1+1.11.1"
 // versions "Xcb"
 
-// dependency "erupted" version="~>2.1.98+v1.3.248"
-// sourcePaths "external/vkvg"
-// versions "VkVG"
+dependency "erupted" version="~>2.1.98+v1.3.248"
+sourcePaths "external/vkvg"
+versions "VkVG"
 
 dependency "arsd-official:nanovega" repository="git+https://github.com/Dadoum/arsd.git" version="32c2d2c5baf44afd864bac723a231ffc92df8986"
 subConfiguration "arsd-official:nanovega" "bindbc"

@@ -1,12 +1,14 @@
 module dfenestration.widgets.button;
 
 import dfenestration.widgets.container;
+import dfenestration.widgets.control;
 import dfenestration.widgets.widget;
 
-class Button: Container!Widget {
+abstract class Button: Container!Widget {
+    mixin Control;
+
     private struct _ {
-        uint spacing;
-        WidgetState widgetState;
+        uint spacing = 4;
     }
 
     mixin State!_;
@@ -40,35 +42,7 @@ class Button: Container!Widget {
         return true;
     }
 
-    override bool onHover(Point location) {
-        super.onHover(__traits(parameters));
-        return true;
-    }
-
-    override bool onHoverStart(Point location) {
-        widgetState = widgetState | WidgetState.hovered;
-        return true;
-    }
-
-    override bool onHoverEnd(Point location) {
-        widgetState = widgetState & ~(WidgetState.hovered | WidgetState.pressed);
-        return true;
-    }
-    override bool onClickStart(Point location, MouseButton button) {
-        widgetState = widgetState | WidgetState.pressed;
-        return true;
-    }
-    override bool onClickEnd(Point location, MouseButton button) {
-        if (widgetState & WidgetState.pressed) {
-            widgetState = widgetState & ~WidgetState.pressed;
-            onPress(location, button);
-        }
-        return true;
-    }
-
-    override void onPress(Point location, MouseButton button) {
-
-    }
+    override abstract void onPress(Point location, MouseButton button) {}
 
     override void draw(Context context, Rectangle rectangle) {
         auto allocation = allocation();
@@ -85,11 +59,4 @@ class Button: Container!Widget {
 
         super.draw(context, rectangle);
     }
-}
-
-enum WidgetState {
-    none = 0,
-    hovered = 1 << 0,
-    focused = 1 << 1,
-    pressed = 1 << 2,
 }

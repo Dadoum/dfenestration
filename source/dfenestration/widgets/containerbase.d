@@ -61,15 +61,8 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
                 scope(exit) context.restore();
 
                 context.translate(allocatedRect.x, allocatedRect.y);
-                // context.save();
-                // context.lineWidth(1);
-                context.rectangle(0, 0, allocatedRect.width, allocatedRect.height);
-                // context.sourceRgb(1, 0, 1);
-                // context.lineWidth(1);
-                context.clip();
-                // context.stroke();
-                // context.restore();
-                // if (cast(ContainerBase) widget)
+                // context.rectangle(0, 0, allocatedRect.width, allocatedRect.height);
+                // context.clip();
                 widget.draw(context, rectangle);
             }
         }
