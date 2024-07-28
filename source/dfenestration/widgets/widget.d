@@ -19,8 +19,6 @@ abstract class Widget {
         ContainerData parentData;
         /// Space given to the widget inside the parent container allocation.
         Rectangle allocation;
-        /// Current interaction state of the widget.
-        WidgetState widgetState;
     }
     mixin State!_;
 
@@ -32,38 +30,21 @@ abstract class Widget {
      + Returns true if the hover has been captured.
      +/
     bool onHover(Point location) { return false; }
-    bool onHoverStart(Point location) {
-        widgetState = widgetState | WidgetState.hovered;
-        return false;
-    }
-    bool onHoverEnd(Point location) {
-        widgetState = widgetState & ~WidgetState.hovered;
-        return false;
-    }
+    bool onHoverStart(Point location) { return false; }
+    bool onHoverEnd(Point location) { return false; }
 
     /++
      + Called when the widget gets clicked, with the relative click location.
      + Returns true if the click has been captured.
      +/
-    bool onClickStart(Point location, MouseButton button) {
-        widgetState = widgetState | WidgetState.pressed;
-        return false;
-    }
-    bool onClickEnd(Point location, MouseButton button) {
-        widgetState = widgetState & ~WidgetState.pressed;
-        if (location.x <= allocation.width && location.y <= allocation.height) {
-            onPress(location, button);
-        }
-        return false;
-    }
+    bool onClickStart(Point location, MouseButton button) { return false; }
+    bool onClickEnd(Point location, MouseButton button) { return false; }
 
     bool onTouchStart(Point location) { return onClickStart(location, MouseButton.left); }
     bool onTouchMove(Point location) { return false; }
     bool onTouchEnd(Point location) { return onClickEnd(location, MouseButton.left); }
 
-    bool onPress(Point location, MouseButton button) {
-        return false;
-    }
+    void onPress(Point location, MouseButton button) { }
 
     /++
      + Pinch touchpad gesture (or touch screen)
@@ -109,7 +90,9 @@ abstract class Widget {
     /++
      + Automatically called when a field declared in the state mixin is changed.
      +/
-    void onStateChange() {}
+    void onStateChange() {
+        invalidate();
+    }
 
     /++
      + Widget's preferred size. Can be called called by containers for layout.
@@ -189,18 +172,18 @@ mixin template State() {
         static foreach (member; __traits(allMembers, BaseClass[0])) {
             static foreach (overload; __traits(getOverloads, BaseClass[0], member)) {
                 static if (hasUDA!(overload, StateSetter)) {
-                    mixin(q{
-                    @StateSetter override typeof(this) } ~ __traits(identifier, overload) ~ q{(Parameters!overload params) {
+                    mixin(`
+                    @StateSetter override typeof(this) ` ~ __traits(identifier, overload) ~ `(Parameters!overload params) {
                         __traits(child, super, overload)(params);
                         return this;
                     }
-                    });
+                    `);
                 } else static if (hasUDA!(overload, StateGetter)) {
-                    mixin(q{
-                    @StateGetter override ReturnType!overload } ~ __traits(identifier, overload) ~ q{() {
+                    mixin(`
+                    @StateGetter override ReturnType!(typeof(overload)) ` ~ __traits(identifier, overload) ~ `() {
                         return __traits(child, super, overload)();
                     }
-                    });
+                    `);
                 }
             }
         }
@@ -213,19 +196,19 @@ mixin template State(StateStructure) {
     import std.traits;
     import std.format;
 
-    StateStructure state;
-
     static foreach (property; StateStructure.tupleof) {
         static if (!__traits(hasMember, typeof(this), __traits(identifier, property))) {
             mixin(format!"
+                private typeof(property) _%2$s = __traits(child, StateStructure(), property);
+
                 @StateSetter %1$s typeof(this) %2$s(typeof(property) value) {
-                    __traits(child, state, property) = value;
+                    _%2$s = value;
                     onStateChange();
                     return this;
                 }
 
                 @StateGetter %1$s typeof(property) %2$s() {
-                    return __traits(child, state, property);
+                    return _%2$s;
                 }
             "(__traits(getVisibility, property), __traits(identifier, property)));
         } else {
@@ -250,11 +233,4 @@ mixin template State(StateStructure) {
             }
         }
     }
-}
-
-enum WidgetState {
-    none = 0,
-    hovered = 1 << 0,
-    focused = 1 << 1,
-    pressed = 1 << 2,
 }

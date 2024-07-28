@@ -487,12 +487,11 @@ version (Wayland):
             scope(exit) context.restore();
 
             if (useEmulatedResizeBorders) {
-                // context.sourceRgba(0, 0, 0, .15);
-                // context.dropShadow(resizeMarginSize, resizeMarginSize, size.width, size.height, 0, resizeMarginSize);
+                context.sourceRgba(0, 0, 0, .15);
+                context.dropShadow(resizeMarginSize, resizeMarginSize, size.width, size.height, 0, resizeMarginSize);
                 context.translate(resizeMarginSize, resizeMarginSize);
-                info(_trueSize);
-                // context.rectangle(0, 0, size.tupleof);
-                // context.clip();
+                context.rectangle(0, 0, size.tupleof);
+                context.clip();
             }
 
             window.paint(context);

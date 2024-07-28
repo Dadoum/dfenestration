@@ -1,6 +1,7 @@
 module dfenestration.widgets.windowframe;
 
 import dfenestration.widgets.bin;
+import dfenestration.widgets.button;
 import dfenestration.widgets.column;
 import dfenestration.widgets.container;
 import dfenestration.widgets.row;
@@ -26,7 +27,11 @@ class WindowFrame: Bin {
                     // TODO: use EllipsisText
                     titleText = new Text("DFENESTRATION ERROR - SET THE TITLE FIRST").layoutProperties!Row(/+ expand +/ true),
                     // new Spacer().layoutProperties!Row(/+ expand +/ true),
-                    new Test().size(Size(24, 24))
+                    new Button()
+                        .spacing(2) [
+                        new Test()
+                            .size(Size(24, 24))
+                    ]
                 ]
             ],
             contentBin = new Bin().layoutProperties!Column(/+ expand +/ true)[
@@ -35,12 +40,17 @@ class WindowFrame: Bin {
         ];
     }
 
+    @StateGetter
     override Widget content() {
         return contentBin.content;
     }
 
-    override void content(Widget w) {
+    @StateSetter
+    override WindowFrame content(Widget w) {
         contentBin.content = w;
+        onStateChange();
+        onSizeAllocate();
+        return this;
     }
 
     override void draw(Context context) {

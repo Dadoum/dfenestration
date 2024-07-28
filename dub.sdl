@@ -4,6 +4,7 @@ authors "Dadoum"
 license "proprietary"
 sourcePaths "source"
 
+dependency "arsd-official:color_base" repository="git+https://github.com/Dadoum/arsd.git" version="32c2d2c5baf44afd864bac723a231ffc92df8986"
 dependency "bindbc-freetype" version="~>1.2.6"
 dependency "bindbc-harfbuzz" version="~>0.2.1"
 dependency "dynamic-loader" repository="git+https://github.com/Dadoum/dynamicloader.git" version="1d9eaa74e7d54c395ce4abfc15a9654ebfd9c7d2"

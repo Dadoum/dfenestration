@@ -30,13 +30,10 @@ abstract class Backend {
     EventLoop _eventLoop;
     FT_Library _freetypeLibrary;
 
-    Face _defaultFace;
-    Face _monospaceFace;
-
     EventLoop eventLoop() => _eventLoop;
 
-    Face createDefaultFace() => _defaultFace;
-    Face createMonospaceFace() => _monospaceFace;
+    Face createDefaultFace() => loadFaceFromFile("/usr/share/fonts/liberation-sans/LiberationSans-Regular.ttf");
+    Face createMonospaceFace() => loadFaceFromFile("/usr/share/fonts/liberation-mono/LiberationMono-Regular.ttf");
 
     this() {
         _eventLoop = new EventLoop();
@@ -50,16 +47,12 @@ abstract class Backend {
         }
 
         FT_Init_FreeType(&_freetypeLibrary);
-
-        _defaultFace = loadFaceFromFile("/usr/share/fonts/liberation-sans/LiberationSans-Regular.ttf");
-        _monospaceFace = loadFaceFromFile("/usr/share/fonts/liberation-mono/LiberationMono-Regular.ttf");
     }
 
     ~this() {
-        if (!_freetypeLibrary) {
-            return;
+        if (_freetypeLibrary) {
+            FT_Done_FreeType(_freetypeLibrary);
         }
-        FT_Done_FreeType(_freetypeLibrary);
     }
 
     final void roundtrip() {

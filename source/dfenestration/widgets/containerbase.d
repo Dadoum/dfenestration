@@ -75,6 +75,8 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
         }
     }
 
+    override void draw(Context context) => super.draw(context);
+
     /++
      + Request part of the widget to be redrawn.
      +/
@@ -107,16 +109,17 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
     }
 
     override bool onHover(Point location) {
-        bool val = super.onHover(location);
         foreach_reverse (allocation; allocations) {
             auto widget = allocation[0];
             auto rectangle = allocation[1];
             if (rectangle.contains(location)) {
                 auto relativeLocation = Point(location.x - rectangle.x, location.y - rectangle.y);
-                if (hoveredWidget != widget && hoveredWidget) {
+                if (hoveredWidget != widget) {
                     // does the widget handles hovering
                     if (widget.onHoverStart(relativeLocation)) {
-                        hoveredWidget.onHoverEnd(relativeLocation);
+                        if (hoveredWidget) {
+                            hoveredWidget.onHoverEnd(relativeLocation);
+                        }
                         hoveredWidget = widget;
                     } else {
                         // if not, consider it transparent.
@@ -134,17 +137,16 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
             hoveredWidget.onHoverEnd(relativeLocation);
             hoveredWidget = null;
         }
-        return val;
+        return false;
     }
 
     override bool onHoverEnd(Point location) {
-        bool ret = super.onHoverEnd(location);
         if (hoveredWidget) {
             bool val = hoveredWidget.onHoverEnd(location);
             hoveredWidget = null;
             return val;
         }
-        return ret;
+        return false;
     }
 
     override bool onClickStart(Point location, MouseButton button) {
@@ -158,7 +160,7 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
             }
         }
 
-        return super.onClickStart(location, button);
+        return false;
     }
 
     override bool onClickEnd(Point location, MouseButton button) {
@@ -172,7 +174,7 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
             }
         }
 
-        return super.onClickEnd(location, button);
+        return false;
     }
 
     Widget touchedWidget;
@@ -191,7 +193,7 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
             }
         }
 
-        return super.onTouchStart(location);
+        return false;
     }
 
     override bool onTouchMove(Point location) {
@@ -222,7 +224,7 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
             touchedWidget.onTouchEnd(location);
             touchedWidget = null;
         }
-        return super.onTouchMove(location);
+        return false;
     }
 
     override bool onTouchEnd(Point location) {
@@ -231,11 +233,7 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
             touchedWidget = null;
             return val;
         }
-        return super.onTouchEnd(location);
-    }
-
-    void onContentChange() {
-        onSizeAllocate();
+        return false;
     }
 
     /++

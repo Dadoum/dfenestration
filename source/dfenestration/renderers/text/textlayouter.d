@@ -44,7 +44,7 @@ struct TextLayout {
     Size size;
     Point[] points;
 
-    @disable this()Face;
+    @disable this();
     this(typeof(typeof(this).tupleof) elems) {
         this.tupleof = elems;
     }
