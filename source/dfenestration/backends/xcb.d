@@ -9,6 +9,8 @@ import std.logger;
 import std.string;
 import std.traits: ReturnType, Parameters, isIntegral;
 
+import core.stdc.stdlib;
+
 import libasync;
 
 import xcb.xcb;
@@ -50,27 +52,22 @@ class XcbBackend: Backend, VkVGRendererCompatible {
     final void roundtrip() {
         xcb_flush(connection);
         while (auto event = xcb_poll_for_event(connection)) {
+            scope(exit) free(event);
             if (!event.response_type) {
                 error("X11 error: ", (cast(xcb_generic_error_t*) event).error_code.x11ErrorDescription());
-                return;
+                continue;
             }
-            info("event time!");
+            // info("event time!");
 
             switch (event.response_type) {
                 case XCB_EXPOSE:
-                    auto event_cm = cast(xcb_expose_event_t*) event;
-                    info("EXPOSE!");
-                    renderer.draw(xcbWindows[event_cm.window]);
+                    auto event_expose = cast(xcb_expose_event_t*) event;
+                    renderer.draw(xcbWindows[event_expose.window]);
                     break;
                 case XCB_CLIENT_MESSAGE | 1 << 7:
                     auto event_cm = cast(xcb_client_message_event_t*) event;
-                    // X11Window* window = event_cm.window in nativeWindowToDObject;
                     if (event_cm.data.data32[0] == atom!"WM_DELETE_WINDOW") {
-                        info("Delete window");
-                        // if (window !is null) {
-                        //     window.visible = false;
-                        //     window.foreignVisibleChange(false);
-                        // }
+                        xcbWindows[event_cm.window].dWindow.onCloseRequest();
                     } // else if (event_cm.data.data32[0] == connection.atom!"_NET_WM_NAME"()) {
                     //     if (window !is null) {
                     //         window.foreignTitleChange(window.title());
@@ -425,7 +422,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
 
     double scaling() {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
-        return typeof(return).init;
+        return 1;
     }
     void scaling(double value) {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);

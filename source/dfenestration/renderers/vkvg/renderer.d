@@ -637,7 +637,7 @@ version (VkVG) {
             auto props = window.vkvgRendererProperties();
             props.destroySwapchain();
             props.swapchainSize = Size(width, height);
-            createSwapchain(window, props.swapchainSize.tupleof);
+            // createSwapchain(window, props.swapchainSize.tupleof);
         }
 
         /++
@@ -652,6 +652,10 @@ version (VkVG) {
 
             uint imageIndex;
             auto vulkanProps = window.vkvgRendererProperties();
+
+            if (!vulkanProps.swapchain) {
+                createSwapchain(window, window.canvasSize().tupleof);
+            }
 
             VkResult result = vkAcquireNextImageKHR(
                 device,
@@ -677,30 +681,30 @@ version (VkVG) {
                 window.paint(context);
             }
 
-            // VkSemaphore[] waitSemaphores = [ vulkanProps.presentationSemaphore ];
-            // VkSemaphore[] signalSemaphores = [ vulkanProps.graphicsSemaphore ];
+            VkSemaphore[1] waitSemaphores = [ vulkanProps.presentationSemaphore ];
+            VkSemaphore[1] signalSemaphores = [ vulkanProps.graphicsSemaphore ];
 
             VkPipelineStageFlags waitStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
             VkSubmitInfo submitInfo = {
-                waitSemaphoreCount      : /+ cast(uint) waitSemaphores.length +/ 1,
-                pWaitSemaphores         : /+ waitSemaphores.ptr +/ &vulkanProps.presentationSemaphore,
+                waitSemaphoreCount      : cast(uint) waitSemaphores.length,
+                pWaitSemaphores         : waitSemaphores.ptr,
                 pWaitDstStageMask       : &waitStages,
                 commandBufferCount      : 1,
                 pCommandBuffers         : &vulkanProps.commandBuffers[imageIndex],
-                signalSemaphoreCount    : /+ cast(uint) signalSemaphores.length +/ 1,
-                pSignalSemaphores       : /+ signalSemaphores.ptr +/ &vulkanProps.graphicsSemaphore
+                signalSemaphoreCount    : cast(uint) signalSemaphores.length,
+                pSignalSemaphores       : signalSemaphores.ptr
             };
 
             vkQueueSubmit(graphicsQueue, 1, &submitInfo, null).vkEnforce();
 
-            // auto swapchains = [vulkanProps.swapchain];
+            VkSwapchainKHR[1] swapchains = [vulkanProps.swapchain];
 
             VkPresentInfoKHR presentInfo = {
-                waitSemaphoreCount      : /+ cast(uint) signalSemaphores.length +/ 1,
-                pWaitSemaphores         : /+ signalSemaphores.ptr +/ &vulkanProps.graphicsSemaphore,
-                swapchainCount          : /+ cast(uint) swapchains.length +/ 1,
-                pSwapchains             : /+ swapchains.ptr +/ &vulkanProps.swapchain,
+                waitSemaphoreCount      : cast(uint) signalSemaphores.length,
+                pWaitSemaphores         : signalSemaphores.ptr,
+                swapchainCount          : cast(uint) swapchains.length,
+                pSwapchains             : swapchains.ptr,
                 pImageIndices           : &imageIndex
             };
 
