@@ -27,8 +27,6 @@ version (VkVG) {
         VkPhysicalDevice physicalDevice;
         VkQueue graphicsQueue;
 
-        Device vkvgDevice;
-
         uint graphicsQueueIndex = -1;
         uint computeQueueIndex = -1;
         uint transferQueueIndex = -1;
@@ -229,12 +227,9 @@ version (VkVG) {
             loadDeviceLevelFunctions(device);
 
             vkGetDeviceQueue(device, graphicsQueueIndex, 0, &graphicsQueue);
-
-            vkvgDevice = new Device(instance, physicalDevice, device, graphicsQueueIndex, 0, VK_SAMPLE_COUNT_8_BIT, false);
         }
 
         ~this() {
-            destroy(vkvgDevice);
             if (device) {
                 vkDestroyDevice(device, null);
             }
@@ -258,6 +253,7 @@ version (VkVG) {
             VkVGRendererProperties* rendererProperties = window.vkvgRendererProperties();
             rendererProperties.renderer = this;
             rendererProperties.swapchainSize = backendWindow.canvasSize();
+            rendererProperties.vkvgDevice = new Device(instance, physicalDevice, device, graphicsQueueIndex, 0, VK_SAMPLE_COUNT_8_BIT, false);
 
             // rendererProperties.device
             //     = new Device(instance, physicalDevice, device, graphicsQueueIndex, 0, VK_SAMPLE_COUNT_8_BIT, false);
@@ -355,7 +351,11 @@ version (VkVG) {
 
             vkvgRendererProperties.destroySwapchain();
 
-            vkvgRendererProperties.vkvgSurface = new Surface(vkvgDevice, width, height); // TODO fractional scaling.
+            auto scaling = window.scaling();
+            uint hdpy = cast(uint) (96 * scaling);
+            uint vdpy = cast(uint) (96 * scaling);
+            vkvgRendererProperties.vkvgDevice.setDpy(hdpy, vdpy);
+            vkvgRendererProperties.vkvgSurface = new Surface(vkvgRendererProperties.vkvgDevice, width, height);
 
             VkSwapchainCreateInfoKHR swapchainCreateInfo = vkvgRendererProperties.swapchainCreateInfo;
             swapchainCreateInfo.imageExtent = VkExtent2D(width, height);
@@ -617,6 +617,7 @@ version (VkVG) {
             auto props = window.vkvgRendererProperties();
             props.destroySwapchain();
             props.swapchainSize = Size(width, height);
+            createSwapchain(window, props.swapchainSize.tupleof);
         }
 
         /++
@@ -631,12 +632,6 @@ version (VkVG) {
 
             uint imageIndex;
             auto vulkanProps = window.vkvgRendererProperties();
-
-            if (!vulkanProps.swapchain) {
-                if (!createSwapchain(window, vulkanProps.swapchainSize.tupleof)) {
-                    return;
-                }
-            }
 
             VkResult result = vkAcquireNextImageKHR(
                 device,
@@ -706,7 +701,7 @@ version (VkVG) {
 
     struct VkVGRendererProperties {
       // private:
-        // vkvg.Device device;
+        vkvg.Device vkvgDevice;
         VkVGRenderer renderer;
         VkSurfaceKHR surface;
         VkFormat imageFormat;
@@ -750,6 +745,7 @@ version (VkVG) {
             vkDestroySemaphore(renderer.device, graphicsSemaphore, null);
 
             vkDestroySurfaceKHR(renderer.instance, surface, null);
+            destroy(vkvgDevice);
         }
     }
 

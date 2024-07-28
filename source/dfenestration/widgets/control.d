@@ -13,16 +13,15 @@ mixin template Control() {
         super.onHover(__traits(parameters));
         return true;
     }
-
     override bool onHoverStart(Point location) {
         widgetState = widgetState | WidgetState.hovered;
         return true;
     }
-
     override bool onHoverEnd(Point location) {
         widgetState = widgetState & ~(WidgetState.hovered | WidgetState.pressed);
         return true;
     }
+
     override bool onClickStart(Point location, MouseButton button) {
         widgetState = widgetState | WidgetState.pressed;
         return true;

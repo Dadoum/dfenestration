@@ -40,7 +40,7 @@ abstract class Widget {
     bool onClickEnd(Point location, MouseButton button) { return false; }
 
     bool onTouchStart(Point location) { return onClickStart(location, MouseButton.left); }
-    bool onTouchMove(Point location) { return false; }
+    bool onTouchMove(Point location) { return onHover(location); }
     bool onTouchEnd(Point location) { return onClickEnd(location, MouseButton.left); }
 
     void onPress(Point location, MouseButton button) { }

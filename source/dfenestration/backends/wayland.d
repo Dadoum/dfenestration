@@ -87,7 +87,7 @@ version (Wayland):
 
             registry = display.getRegistry();
             registry.onGlobal = (WlRegistry reg, uint id, string iface, uint ver) {
-                info(iface, " is available.");
+                // trace(iface, " is available.");
                 static foreach (WlInterface; SupportedProtocols) {
                     if (iface == WlInterface.iface.name) {
                         wlObject!WlInterface = cast(WlInterface) reg.bind(id, WlInterface.iface, 1);
@@ -251,7 +251,7 @@ version (Wayland):
 
                 EGLint major, minor;
                 enforce(eglInitialize(eglDisplay, &major, &minor) == EGL_TRUE);
-                info("EGL ", major, ".", minor, " has been loaded");
+                trace("EGL ", major, ".", minor, " has been loaded");
 
                 enforce(eglBindAPI(EGL_OPENGL_API) == EGL_TRUE);
 
@@ -397,7 +397,7 @@ version (Wayland):
                     decoration = WaylandDecoration.xdg(xdgDecoration);
                 }
             } else {
-                warning("Cannot decorate the window.");
+                warning("Cannot use system decorations.");
             }
 
             if (auto manager = backend.fractionalScaleManager) {

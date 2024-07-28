@@ -30,6 +30,9 @@ abstract class Backend {
     EventLoop _eventLoop;
     FT_Library _freetypeLibrary;
 
+    bool running = false;
+    int exitCode = 0;
+
     EventLoop eventLoop() => _eventLoop;
 
     Face createDefaultFace() => loadFaceFromFile("/usr/share/fonts/liberation-sans/LiberationSans-Regular.ttf");
@@ -55,8 +58,19 @@ abstract class Backend {
         }
     }
 
-    final void roundtrip() {
-        eventLoop.loop();
+    final int run() {
+        running = true;
+
+        while (running) {
+            eventLoop.loop();
+        }
+
+        return exitCode;
+    }
+
+    final void exit(int code = 0) {
+        running = false;
+        exitCode = code;
     }
 
     Renderer buildRenderer(this R)() {

@@ -19,6 +19,10 @@ class Device/+(bool hardwareAccelerated)+/ {
         owned = true;
     }
 
+    void getDpy(out int hdpy, out int vdpy) {
+        vkvg_device_get_dpy(handle, &hdpy, &vdpy);
+    }
+
     void setDpy(int hdpy, int vdpy) {
         vkvg_device_set_dpy(handle, hdpy, vdpy);
     }

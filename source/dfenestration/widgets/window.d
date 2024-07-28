@@ -48,8 +48,7 @@ class Window: Container!Widget {
     }
     mixin State!_;
 
-    bool closed = false;
-
+    bool running = false;
     WindowFrame frame;
 
     /++
@@ -109,24 +108,27 @@ class Window: Container!Widget {
         return true;
     }
 
+    bool isPrimaryWindow;
     /++
      + Method called when the user asks to close the window.
      + If the window is a pop-up, the window should be closed at the end.
      +/
     void onCloseRequest() {
-        closed = true;
+        if (isPrimaryWindow) {
+            backend.exit();
+        }
     }
 
     /++
      + Enter in the main app loop, and quit on window close.
+     + primaryWindow: shows the window, and exits when it is hidden.
      +/
-    int run(bool showWindow = true) {
-        if (showWindow) show();
-
-        while (!closed) {
-            backend.roundtrip();
+    int run(bool isPrimaryWindow = true) {
+        if (isPrimaryWindow) {
+            this.isPrimaryWindow = true;
+            show();
         }
-        return 0;
+        return backend.run();
     }
 
     /++
