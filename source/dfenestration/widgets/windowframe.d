@@ -28,10 +28,10 @@ class WindowFrame: Bin {
                     // TODO: use EllipsisText
                     titleText = new Text("DFENESTRATION ERROR - SET THE TITLE FIRST").layoutProperties!Row(/+ expand +/ true),
                     // new Spacer().layoutProperties!Row(/+ expand +/ true),
-                    // new class Button { override void onPress(Point location, MouseButton button) => window.minimize(); } [
-                    //     new Test()
-                    //         .size(Size(24, 24))
-                    // ],
+                    new class Button { override void onPress(Point location, MouseButton button) => window.minimize(); } [
+                        new Test()
+                            .size(Size(24, 24))
+                    ],
                     new class Button { override void onPress(Point location, MouseButton button) => window.close(); } [
                         new Test()
                             .size(Size(24, 24))

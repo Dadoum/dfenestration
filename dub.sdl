@@ -24,7 +24,7 @@ versions "Xcb"
 // dependency "x11d" version="~>1.0.24"
 // versions "X11"
 
-dependency "erupted" version="~>2.1.98+v1.3.248"
+dependency "erupted" repository="git+https://github.com/Dadoum/erupted.git" version="52a737db4dae261af6aa533b52b91592051d063b"
 sourcePaths "external/vkvg"
 versions "VkVG"
 

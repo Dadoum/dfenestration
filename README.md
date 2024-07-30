@@ -24,6 +24,9 @@ but good enough and easy to use.
 
 - OpenGL backend's NanoVega clips incorrectly, leaving one pixel wide errors on every 
 clipping operation.
+- Resizing from the top left corner with the Vulkan backend is making the window jump 
+the first time.
+- Resizing a vulkan window is a bit laggy (VkVG issue tho).
 
 ## Support
 

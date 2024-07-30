@@ -753,9 +753,15 @@ version (VkVG) {
                 return;
             }
 
+            auto device = renderer.device;
             destroy(vkvgSurface);
-            vkDeviceWaitIdle(renderer.device).vkEnforce();
-            vkDestroySwapchainKHR(renderer.device, swapchain, null);
+
+            foreach (imageBuffer; imageBuffers) {
+                vkDestroyImageView(device, imageBuffer.view, null);
+            }
+
+            vkDeviceWaitIdle(device).vkEnforce();
+            vkDestroySwapchainKHR(device, swapchain, null);
             vkQueueWaitIdle(renderer.graphicsQueue).vkEnforce();
             vkResetCommandPool(renderer.device, commandPool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT).vkEnforce();
 
@@ -764,6 +770,7 @@ version (VkVG) {
 
         void dispose() {
             destroySwapchain();
+            vkDestroyCommandPool(renderer.device, commandPool, null);
 
             vkDestroySemaphore(renderer.device, presentationSemaphore, null);
             vkDestroySemaphore(renderer.device, graphicsSemaphore, null);

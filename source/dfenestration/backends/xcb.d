@@ -78,7 +78,8 @@ class XcbBackend: Backend, VkVGRendererCompatible {
                     //     }
                     // }
                     break;
-                    default:
+
+                default:
                     break;
             }
         }
@@ -325,6 +326,12 @@ class XcbWindow: BackendWindow, VkVGWindow {
         return typeof(return).init;
     }
     void position(Point value) {
+        if (_parent) {
+            Point parentPosition = _parent.position;
+            value.x -= parentPosition.x;
+            value.y -= parentPosition.y;
+        }
+
         const(uint)[2] array = [value.tupleof];
         xcb_configure_window(backend.connection, window, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, array.ptr);
     }
@@ -374,8 +381,12 @@ class XcbWindow: BackendWindow, VkVGWindow {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
     }
 
+    XcbWindow _parent;
     void parent(BackendWindow window) {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+        XcbWindow parentWindow = cast(XcbWindow) window;
+        assert(_parent !is null);
+        _parent = parentWindow;
+        xcbProperty!"WM_TRANSIENT_FOR" = parentWindow.window;
     }
 
     void show() {
@@ -561,6 +572,8 @@ template atomNameForType(T) {
         enum atomNameForType = "UTF8_STRING";
     else static if (is(T == xcb_atom_t[]))
         enum atomNameForType = "ATOM";
+    else static if (is(T == xcb_window_t))
+        enum atomNameForType = "WINDOW";
     else static if (isIntegral!T)
         enum atomNameForType = "CARDINAL";
     else

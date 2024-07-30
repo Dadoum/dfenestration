@@ -55,7 +55,6 @@ class X11Backend: Backend, VkVGRendererCompatible {
             switch (event.response_type) {
                 case XCB_EXPOSE:
                     auto event_cm = cast(xcb_expose_event_t*) event;
-                    // info("EXPOSE!");
                     renderer.draw(xcbWindows[event_cm.window]);
                     break;
                 case XCB_CLIENT_MESSAGE | 1 << 7:
@@ -111,8 +110,8 @@ class X11Backend: Backend, VkVGRendererCompatible {
         }
     }
 
-    override XcbWindow createBackendWindow(Window window) {
-        auto xcbWindow = new XcbWindow(this, window);
+    override X11Window createBackendWindow(Window window) {
+        auto xcbWindow = new X11Window(this, window);
         xcbWindows[xcbWindow.window] = xcbWindow;
         renderer.initializeWindow(xcbWindow);
         return xcbWindow;
@@ -125,7 +124,7 @@ class X11Backend: Backend, VkVGRendererCompatible {
          + VkExtensions required for backend.
          +/
         string[] requiredExtensions() {
-            return ["VK_KHR_xcb_surface"];
+            return ["VK_KHR_x11_surface"];
         }
 
         void loadInstanceFuncs(VkInstance instance) {
@@ -141,16 +140,16 @@ class X11Backend: Backend, VkVGRendererCompatible {
 version (VkVG) {
     import erupted.platform_extensions;
 
-    mixin Platform_Extensions!USE_PLATFORM_XCB_KHR vulkanXcb;
+    mixin Platform_Extensions!USE_PLATFORM_X11_KHR vulkanX11;
 }
 
-class XcbWindow: BackendWindow, VkVGWindow {
+class X11Window: BackendWindow, VkVGWindow {
     Window dWindow;
-    XcbBackend backend;
+    X11Backend backend;
 
     xcb_window_t window;
 
-    this(XcbBackend backend, Window dWindow) {
+    this(X11Backend backend, Window dWindow) {
         this.backend = backend;
         this.dWindow = dWindow;
         // screen = *setup.xcb_setup_visual_iterator().data;
@@ -465,24 +464,24 @@ class XcbWindow: BackendWindow, VkVGWindow {
     }
 }
 
-class XcbBackendBuilder: BackendBuilder {
-    XcbBackend __instance;
+class X11BackendBuilder: BackendBuilder {
+    X11Backend __instance;
 
     ushort evaluate() {
         // FIXME: add a better check for X11 server
         return 1;
     }
 
-    XcbBackend instance() {
+    X11Backend instance() {
         if (!__instance) {
-            __instance = new XcbBackend();
+            __instance = new X11Backend();
         }
         return __instance;
     }
 }
 
 static this() {
-    registerBackend("xcb", new XcbBackendBuilder());
+    registerBackend("x11", new XcbBackendBuilder());
 }
 
 class XcbException : Exception

@@ -108,7 +108,7 @@ class Row: Container!(Widget[]), UsesData!RowData {
                 sizeAllocate(Rectangle(allocatedWidth, 0, width, alloc.height), size[0]);
                 allocatedWidth += width;
             }
-        } else if (!hasExpandedWidget || totalNaturalSize > alloc.height) {
+        } else if (!hasExpandedWidget || totalNaturalSize > alloc.width) {
             uint allocatedWidth = 0;
             foreach (size; preferredSizes) {
                 uint width;

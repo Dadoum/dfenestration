@@ -25,7 +25,7 @@ class VkVGContext: Context {
         scope(exit) restore();
 
         sourceRgb(0, 0, 0);
-        rectangle(x - 1, y - 1, w + 2, h + 1);
+        rectangle(x - 1, y - 1, w + 2, h + 2);
         fill();
     }
 
