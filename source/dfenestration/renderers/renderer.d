@@ -43,3 +43,10 @@ template BackendCompatibleWith(T: Renderer) {
         alias BackendCompatibleWith = AliasSeq!();
     }
 }
+
+struct RendererIdentifier {
+    string identifier;
+
+    @disable this();
+    this(typeof(this.tupleof)) { this.tupleof = __traits(parameters); }
+}

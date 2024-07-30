@@ -21,6 +21,7 @@ version (VkVG) {
 
     public enum vulkanApiVersion = VK_MAKE_API_VERSION(0, 1, 2, 0);
 
+    @RendererIdentifier("vkvg")
     class VkVGRenderer: Renderer {
         VkInstance instance;
         VkDevice device;

@@ -71,7 +71,7 @@ X11 (TODO)
   |                     | Software | OpenGL      | Vulkan      | Metal |
   |---------------------|----------|-------------|-------------|-------|
   | Wayland (xdg-shell) |          | OK          | OK          | -     |
-  | X11                 |          | wip         |             | -     |
+  | X11                 |          |             | wip         | -     |
   | Windows             |          |             |             | -     |
   | macOS               |          | not planned | not planned |       |
 

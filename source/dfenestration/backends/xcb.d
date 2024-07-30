@@ -156,6 +156,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
         this.backend = backend;
         this.dWindow = dWindow;
         // screen = *setup.xcb_setup_visual_iterator().data;
+        auto connection = backend.connection;
         auto screen = backend.screen;
 
         xcb_depth_iterator_t depth_iter = xcb_screen_allowed_depths_iterator (screen);
@@ -171,8 +172,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
             }
         }
 
-        uint[2] values = [
-            XCB_PIXMAP_NONE,
+        uint[1] values = [
             XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
             XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
             XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW |
@@ -182,16 +182,16 @@ class XcbWindow: BackendWindow, VkVGWindow {
             XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE
         ];
 
-        window = xcb_generate_id(backend.connection);
-        xcb_create_window(
-            backend.connection,
+        window = xcb_generate_id(connection);
+        xcb_create_window_checked(
+            connection,
             XCB_COPY_FROM_PARENT, window, screen.root,
-            10, 10, 20, 20, 0,
+            -1, -1, 200, 200, 0,
             XCB_WINDOW_CLASS_INPUT_OUTPUT,
             backend.visual,
-            XCB_CW_BACK_PIXMAP | XCB_CW_EVENT_MASK,
+            XCB_CW_EVENT_MASK,
             values.ptr
-        );
+        ).xcbEnforce(connection);
 
         xcbProperty!"WM_PROTOCOLS" = [backend.atom!"WM_DELETE_WINDOW"];
     }
@@ -342,7 +342,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
     }
     void size(Size value) {
         const(uint)[2] array = [value.tupleof];
-        xcb_configure_window(backend.connection, window, XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, array.ptr);
+        xcb_configure_window_checked(backend.connection, window, XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, array.ptr);
     }
 
     Size minimumSize() {
@@ -458,6 +458,10 @@ class XcbWindow: BackendWindow, VkVGWindow {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
     }
 
+    void showWindowControlMenu(Point location) {
+        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+    }
+
     version (VkVG) {
         import erupted;
 
@@ -520,6 +524,18 @@ ReturnType!func xcbEnforce(alias func)(Parameters!func[0..$-1] params)
     }
 
     return reply;
+}
+
+pragma(inline, true)
+void xcbEnforce(xcb_void_cookie_t cookie, xcb_connection_t* connection, string file = __FILE__, int line = __LINE__)
+{
+    xcb_generic_error_t* error = xcb_request_check(connection, cookie);
+
+    if (error) {
+        scope(exit) free(error);
+        auto code = error.error_code;
+        throw new XcbException(format!"%s (%d)."(code.x11ErrorDescription(), code), file, line);
+    }
 }
 
 string x11ErrorDescription(ubyte errorCode) {

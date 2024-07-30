@@ -2,6 +2,7 @@ module dfenestration.backends.backend;
 
 import core.thread;
 
+import std.algorithm;
 import std.conv;
 import std.datetime;
 import std.exception;
@@ -74,15 +75,34 @@ abstract class Backend {
     }
 
     Renderer buildRenderer(this R)() {
-        // TODO add a renderer override
+        if (auto rendererOverride = environment.get(rendererEnvironmentVariable, null)) {
+            Renderer delegate() buildRenderer = null;
 
-        static foreach_reverse (Type; InterfacesTuple!R) {{
-            static if (is(Type: BackendCompatibleWith!RendererT, RendererT)) {
-                if (RendererT.compatible()) {
-                    return new RendererT(this);
+            static foreach_reverse (Type; InterfacesTuple!R) {{
+                static if (is(Type: BackendCompatibleWith!RendererT, RendererT)) {
+                    if (RendererT.compatible()) {
+                        enum RendererIdentifier[] attributes = [getUDAs!(RendererT, RendererIdentifier)];
+                        if (attributes.length > 0 && attributes.any!((id) => id.identifier == rendererOverride)) {
+                            return new RendererT(this);
+                        }
+                        buildRenderer = () => new RendererT(this);
+                    }
                 }
+            }}
+
+            if (buildRenderer !is null) {
+                warning(rendererOverride, " is not available, or is not compatible with the ", R.stringof, " backend.");
+                return buildRenderer();
             }
-        }}
+        } else {
+            static foreach_reverse (Type; InterfacesTuple!R) {{
+                static if (is(Type: BackendCompatibleWith!RendererT, RendererT)) {
+                    if (RendererT.compatible()) {
+                        return new RendererT(this);
+                    }
+                }
+            }}
+        }
 
         throw new NoRendererException(format!"No renderer is available for %s."(R.stringof));
     }
@@ -161,6 +181,8 @@ interface BackendWindow {
 
     void moveDrag();
     void resizeDrag(ResizeEdge edge);
+
+    void showWindowControlMenu(Point location);
 }
 
 interface BackendBuilder {

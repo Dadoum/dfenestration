@@ -11,7 +11,9 @@ import std.traits: ReturnType, Parameters, isIntegral;
 
 import libasync;
 
-import x11.Xlib;
+import x = X11.X;
+alias VisualID = x.VisualID;
+import X11.Xlib;
 
 import dfenestration.backends.backend;
 import dfenestration.primitives;
@@ -21,13 +23,13 @@ import dfenestration.renderers.context;
 import dfenestration.renderers.renderer;
 import dfenestration.widgets.window;
 
-class X11Backend: Backend, VkVGRendererCompatible {
+class X11Backend: Backend {
     Display* display;
     int screen;
-    Visual visual;
+    Visual* visual;
 
     Renderer renderer;
-    // XcbWindow[xcb_window_t] xcbWindows;
+    X11Window[x.Window] x11Windows;
 
     this() {
         display = XOpenDisplay(null);
@@ -38,15 +40,18 @@ class X11Backend: Backend, VkVGRendererCompatible {
         screen = DefaultScreen(display);
         visual = DefaultVisual(display, screen);
 
-        renderer = this.buildRenderer();
+        // renderer = this.buildRenderer();
 
-        AsyncEvent event = new AsyncEvent(eventLoop, ConnectionNumber(connection));
+        AsyncEvent event = new AsyncEvent(eventLoop, ConnectionNumber(display));
         event.run((code) => roundtrip());
     }
 
     final void roundtrip() {
-        xcb_flush(connection);
-        while (auto event = XNextEvent()) {
+        XEvent event;
+
+        foreach (pendingEventCount; 0..XPending(display)) {
+            XNextEvent(display, &event);
+            /+
             if (!event.response_type) {
                 error("X11 error: ", (cast(xcb_generic_error_t*) event).error_code.x11ErrorDescription());
                 return;
@@ -79,42 +84,18 @@ class X11Backend: Backend, VkVGRendererCompatible {
                     default:
                     break;
             }
+            +/
         }
     }
 
     ~this() {
-        xcb_disconnect(connection);
-    }
-
-    template atom(string name) {
-        xcb_atom_t a;
-
-        xcb_atom_t atom() {
-            if(!a) {
-                const(xcb_intern_atom_reply_t*) reply = xcbEnforce!xcb_intern_atom_reply(
-                    connection,
-                    xcb_intern_atom(
-                        connection,
-                        0,
-                        name.length,
-                        name
-                    )
-                );
-
-                enforce(reply.atom != 0, "X server replied no atom.");
-                a = reply.atom;
-            }
-
-            assert(a != 0);
-            return a;
-        }
+        XCloseDisplay(display);
     }
 
     override X11Window createBackendWindow(Window window) {
-        auto xcbWindow = new X11Window(this, window);
-        xcbWindows[xcbWindow.window] = xcbWindow;
-        renderer.initializeWindow(xcbWindow);
-        return xcbWindow;
+        auto x11Window = new X11Window(this, window);
+        x11Windows[x11Window.window] = x11Window;
+        return x11Window;
     }
 
     version (VkVG) {
@@ -132,7 +113,7 @@ class X11Backend: Backend, VkVGRendererCompatible {
         }
 
         bool isDeviceSuitable(VkPhysicalDevice device, uint queueFamilyIndex) {
-            return cast(bool) vkGetPhysicalDeviceXcbPresentationSupportKHR(device, queueFamilyIndex, connection, visual);
+            return cast(bool) vkGetPhysicalDeviceXlibPresentationSupportKHR(device, queueFamilyIndex, display, visual.visualid);
         }
     }
 }
@@ -140,153 +121,23 @@ class X11Backend: Backend, VkVGRendererCompatible {
 version (VkVG) {
     import erupted.platform_extensions;
 
-    mixin Platform_Extensions!USE_PLATFORM_X11_KHR vulkanX11;
+    mixin Platform_Extensions!USE_PLATFORM_XLIB_KHR vulkanX11;
 }
 
-class X11Window: BackendWindow, VkVGWindow {
+class X11Window: BackendWindow {
+    x.Window window;
     Window dWindow;
     X11Backend backend;
-
-    xcb_window_t window;
 
     this(X11Backend backend, Window dWindow) {
         this.backend = backend;
         this.dWindow = dWindow;
-        // screen = *setup.xcb_setup_visual_iterator().data;
-        auto screen = backend.screen;
 
-        xcb_depth_iterator_t depth_iter = xcb_screen_allowed_depths_iterator (screen);
-        for (; depth_iter.rem; xcb_depth_next (&depth_iter)) {
-            xcb_visualtype_iterator_t visual_iter;
+        auto d = backend.display;
+        auto s = DefaultScreen(d);
 
-            visual_iter = xcb_depth_visuals_iterator (depth_iter.data);
-            for (; visual_iter.rem; xcb_visualtype_next (&visual_iter)) {
-                if (depth_iter.data.depth == 32) {
-                    // visual = visual_iter.data.visual_id;
-                    break;
-                }
-            }
-        }
-
-        uint[2] values = [
-            XCB_PIXMAP_NONE,
-            XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
-            XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
-            XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW |
-            XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_BUTTON_MOTION |
-            XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_VISIBILITY_CHANGE |
-            XCB_EVENT_MASK_FOCUS_CHANGE | XCB_EVENT_MASK_KEYMAP_STATE |
-            XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE
-        ];
-
-        window = xcb_generate_id(backend.connection);
-        xcb_create_window(
-            backend.connection,
-            XCB_COPY_FROM_PARENT, window, screen.root,
-            10, 10, 20, 20, 0,
-            XCB_WINDOW_CLASS_INPUT_OUTPUT,
-            backend.visual,
-            XCB_CW_BACK_PIXMAP | XCB_CW_EVENT_MASK,
-            values.ptr
-        );
-
-        xcbProperty!"WM_PROTOCOLS" = [backend.atom!"WM_DELETE_WINDOW"];
-    }
-
-    T xcbProperty(string propertyName, T: U[], U)(xcb_atom_t type = 0) {
-        if (type == 0) {
-            type = backend.atom!(atomNameForType!T);
-        }
-
-        xcb_get_property_reply_t* reply = xcbEnforce!xcb_get_property_reply(
-            backend.connection,
-            xcb_get_property(
-                backend.connection,
-                cast(ubyte) false,
-                window,
-                backend.atom!propertyName,
-                type,
-                cast(uint) 0,
-                cast(uint) 1024
-            )
-        );
-
-        return cast(T) xcb_get_property_value(reply)[0..xcb_get_property_value_length(reply)];
-    }
-
-    T xcbProperty(string propertyName, T)(xcb_atom_t type = 0) {
-        if (type == 0) {
-            type = backend.atom!(atomNameForType!T);
-        }
-
-        xcb_get_property_reply_t* reply = xcbEnforce!xcb_get_property_reply(
-            backend.connection,
-            xcb_get_property(
-                backend.connection,
-                cast(ubyte) false,
-                window,
-                backend.atom!propertyName,
-                type,
-                cast(uint) 0,
-                cast(uint) 1024
-            )
-        );
-
-        return *cast(T*) xcb_get_property_value(reply);
-    }
-
-    void xcbProperty(string propertyName, T: U[], U)(T data, xcb_atom_t type = 0) {
-        if (type == 0) {
-            type = backend.atom!(atomNameForType!T);
-        }
-
-        xcb_change_property(
-            backend.connection,
-            XCB_PROP_MODE_REPLACE,
-            window,
-            backend.atom!propertyName,
-            type,
-            U.sizeof * 8,
-            cast(uint) data.length,
-            data.ptr
-        );
-        xcb_flush(backend.connection);
-    }
-
-    void xcbProperty(string propertyName, T)(T data, xcb_atom_t type = 0, ubyte format = T.sizeof) {
-        if (type == 0) {
-            type = backend.atom!(atomNameForType!T);
-        }
-
-        xcb_change_property(
-            backend.connection,
-            XCB_PROP_MODE_REPLACE,
-            window,
-            backend.atom!propertyName,
-            type,
-            format,
-            1,
-            &data
-        );
-        xcb_flush(backend.connection);
-    }
-
-    void sendClientMessage(T: U[n], U, size_t n)(xcb_atom_t type, T data, ubyte format = U.sizeof * 8) if (T.sizeof == 20) {
-        xcb_client_message_event_t event = {
-            response_type   : XCB_CLIENT_MESSAGE,
-            format          : format,
-            sequence        : 0,
-            window          : window,
-            type            : type,
-        };
-        event.data.data32 = cast(uint[5]) data;
-        // event.data.data8 = cast(uint[20]) data; TODO
-        backend.connection.xcb_send_event(
-            false,
-            backend.screen.root,
-            XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT,
-            cast(const(char*)) &event
-        );
+        window = XCreateSimpleWindow(d, RootWindow(d, s), 10, 10, 100, 100, 1,
+        BlackPixel(d, s), WhitePixel(d, s));
     }
 
     void paint(Context context) {
@@ -294,17 +145,7 @@ class X11Window: BackendWindow, VkVGWindow {
     }
 
     void invalidate() {
-        xcb_expose_event_t invalidate_event;
-        invalidate_event.window = window;
-        invalidate_event.response_type = XCB_EXPOSE;
-        invalidate_event.x = 0;
-        invalidate_event.y = 0;
-        Size size = size();
-        assert(size.width <= ushort.max && size.height <= ushort.max, "Window too big for X11");
-        invalidate_event.width = cast(ushort) size.width;
-        invalidate_event.height = cast(ushort) size.height;
-        xcb_send_event(backend.connection, false, window, XCB_EVENT_MASK_EXPOSURE, cast(char*) &invalidate_event);
-        xcb_flush(backend.connection);
+
     }
 
     void role(Role role) {
@@ -312,10 +153,10 @@ class X11Window: BackendWindow, VkVGWindow {
     }
 
     string title() {
-        return xcbProperty!("_NET_WM_NAME", string);
+        return string.init; // xcbProperty!("_NET_WM_NAME", string);
     }
     void title(string value) {
-        xcbProperty!"_NET_WM_NAME" = value;
+
     }
 
     Point position() {
@@ -323,21 +164,17 @@ class X11Window: BackendWindow, VkVGWindow {
         return typeof(return).init;
     }
     void position(Point value) {
-        const(uint)[2] array = [value.tupleof];
-        xcb_configure_window(backend.connection, window, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, array.ptr);
+
     }
 
     Size size() {
-        auto reply = xcbEnforce!xcb_get_geometry_reply(backend.connection, xcb_get_geometry(backend.connection, window));
-        return Size(cast(uint) reply.width, cast(uint) reply.height);
+        return typeof(return).init;
     }
     void size(Size value) {
-        const(uint)[2] array = [value.tupleof];
-        xcb_configure_window(backend.connection, window, XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, array.ptr);
+
     }
 
     Size minimumSize() {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
         return typeof(return).init;
     }
     void minimumSize(Size value) {
@@ -377,25 +214,18 @@ class X11Window: BackendWindow, VkVGWindow {
     }
 
     void show() {
-        xcb_map_window(backend.connection, window);
+        XMapWindow(backend.display, window);
     }
     void hide() {
-        xcb_unmap_window(backend.connection, window);
+        XUnmapWindow(backend.display, window);
     }
     void minimize() {
-        uint[5] event = [
-            XCB_ICCCM_WM_STATE_ICONIC,
-            0,
-            0,
-            0,
-            0
-        ];
-        sendClientMessage(backend.atom!"WM_CHANGE_STATE", event);
+        // XIconifyWindow(backend.display, window, screen);
     }
 
     void present() {
-        uint value = XCB_STACK_MODE_ABOVE;
-        backend.connection.xcb_configure_window(window, XCB_CONFIG_WINDOW_STACK_MODE, &value);
+        // uint value = XCB_STACK_MODE_ABOVE;
+        // backend.connection.xcb_configure_window(window, XCB_CONFIG_WINDOW_STACK_MODE, &value);
     }
     bool focused() {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
@@ -445,22 +275,8 @@ class X11Window: BackendWindow, VkVGWindow {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
     }
 
-    version (VkVG) {
-        import erupted;
-
-        VkVGRendererProperties _vkvgRendererProperties;
-        VkVGRendererProperties* vkvgRendererProperties() {
-            return &_vkvgRendererProperties;
-        }
-
-        VkResult createSurface(VkInstance instance, const VkAllocationCallbacks* allocator, out VkSurfaceKHR vkSurface) {
-            VkXcbSurfaceCreateInfoKHR createInfo = {
-                flags: 0,
-                connection: backend.connection,
-                window: window
-            };
-            return vkCreateXcbSurfaceKHR(instance, &createInfo, allocator, &vkSurface);
-        }
+    void showWindowControlMenu(Point location) {
+        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
     }
 }
 
@@ -481,7 +297,7 @@ class X11BackendBuilder: BackendBuilder {
 }
 
 static this() {
-    registerBackend("x11", new XcbBackendBuilder());
+    registerBackend("x11", new X11BackendBuilder());
 }
 
 class XcbException : Exception

@@ -29,12 +29,19 @@ class WindowHandle: Bin {
     }
 
     override bool onClickStart(Point location, MouseButton button) {
-        pressed = true;
-        super.onClickStart(location, button);
-        return true;
+        auto ret = super.onClickStart(location, button);
+        if (button == MouseButton.left) {
+            pressed = true;
+            return true;
+        } else if (button == MouseButton.right) {
+            window.backendWindow.showWindowControlMenu(location);
+        }
+        return ret;
     }
     override bool onClickEnd(Point location, MouseButton button) {
-        pressed = false;
+        if (button == MouseButton.left) {
+            pressed = false;
+        }
         return super.onClickEnd(location, button);
     }
 }

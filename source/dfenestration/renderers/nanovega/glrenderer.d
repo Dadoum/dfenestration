@@ -18,6 +18,7 @@ version (NanoVega) {
 
     import dfenestration.renderers.nanovega.baserenderer;
 
+    @RendererIdentifier("nanovegagl")
     class NanoVegaGLRenderer: NanoVegaBaseRenderer {
         this(Backend backend) {
             scope nanoVegaBackend = cast(NanoVegaGLRendererCompatible) backend;

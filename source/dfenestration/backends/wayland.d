@@ -36,7 +36,7 @@ version (Wayland):
     import dfenestration.renderers.renderer;
     import dfenestration.widgets.window;
 
-    class WaylandBackend: Backend, NanoVegaGLRendererCompatible, VkVGRendererCompatible {
+    class WaylandBackend: Backend, VkVGRendererCompatible, NanoVegaGLRendererCompatible {
         alias RequiredProtocols = AliasSeq!(WlCompositor, WlOutput, WlSeat, WlSubcompositor, XdgWmBase);
         alias SupportedProtocols = AliasSeq!(RequiredProtocols,
             OrgKdeKwinServerDecorationManager,
@@ -991,12 +991,10 @@ version (Wayland):
 
         bool shown;
         void show() {
-            trace("Show window.");
             if (shown) {
                 return;
             }
 
-            trace("(making surface now to show the window)");
             makeSurface();
             shown = true;
         }
@@ -1130,6 +1128,18 @@ version (Wayland):
                         break;
                 }
                 toplevel.resize(backend.seat, backend.currentSerial, xdgEdge);
+            }
+        }
+
+        void showWindowControlMenu(Point location) {
+            if (auto toplevel = xdgWindow.toplevel) {
+                if (useEmulatedResizeBorders) {
+                    location.x += resizeMarginSize;
+                    location.y += resizeMarginSize;
+                }
+                toplevel.showWindowMenu(backend.seat, backend.currentSerial, location.tupleof);
+            } else {
+                warning("Can't show the window control menu for that window.");
             }
         }
 
