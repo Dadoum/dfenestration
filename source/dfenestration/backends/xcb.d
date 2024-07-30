@@ -61,8 +61,8 @@ class XcbBackend: Backend, VkVGRendererCompatible {
 
             switch (event.response_type) {
                 case XCB_EXPOSE:
-                    auto event_expose = cast(xcb_expose_event_t*) event;
-                    renderer.draw(xcbWindows[event_expose.window]);
+                    // auto event_expose = cast(xcb_expose_event_t*) event;
+                    // renderer.draw(xcbWindows[event_expose.window]);
                     break;
                 case XCB_CLIENT_MESSAGE | 1 << 7:
                     auto event_cm = cast(xcb_client_message_event_t*) event;
@@ -116,7 +116,6 @@ class XcbBackend: Backend, VkVGRendererCompatible {
     override XcbWindow createBackendWindow(Window window) {
         auto xcbWindow = new XcbWindow(this, window);
         xcbWindows[xcbWindow.window] = xcbWindow;
-        renderer.initializeWindow(xcbWindow);
         return xcbWindow;
     }
 
@@ -194,6 +193,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
         ).xcbEnforce(connection);
 
         xcbProperty!"WM_PROTOCOLS" = [backend.atom!"WM_DELETE_WINDOW"];
+        backend.renderer.initializeWindow(this);
     }
 
     T xcbProperty(string propertyName, T: U[], U)(xcb_atom_t type = 0) {
@@ -213,6 +213,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
                 cast(uint) 1024
             )
         );
+        scope(exit) free(reply);
 
         return cast(T) xcb_get_property_value(reply)[0..xcb_get_property_value_length(reply)];
     }
@@ -234,6 +235,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
                 cast(uint) 1024
             )
         );
+        scope(exit) free(reply);
 
         return *cast(T*) xcb_get_property_value(reply);
     }
@@ -243,7 +245,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
             type = backend.atom!(atomNameForType!T);
         }
 
-        xcb_change_property(
+        xcb_change_property_checked(
             backend.connection,
             XCB_PROP_MODE_REPLACE,
             window,
@@ -252,7 +254,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
             U.sizeof * 8,
             cast(uint) data.length,
             data.ptr
-        );
+        ).xcbEnforce(backend.connection);
         xcb_flush(backend.connection);
     }
 
@@ -261,7 +263,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
             type = backend.atom!(atomNameForType!T);
         }
 
-        xcb_change_property(
+        xcb_change_property_checked(
             backend.connection,
             XCB_PROP_MODE_REPLACE,
             window,
@@ -270,7 +272,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
             format,
             1,
             &data
-        );
+        ).xcbEnforce(backend.connection);
         xcb_flush(backend.connection);
     }
 
@@ -284,12 +286,13 @@ class XcbWindow: BackendWindow, VkVGWindow {
         };
         event.data.data32 = cast(uint[5]) data;
         // event.data.data8 = cast(uint[20]) data; TODO
-        backend.connection.xcb_send_event(
+        xcb_send_event_checked(
+            backend.connection,
             false,
             backend.screen.root,
             XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT,
             cast(const(char*)) &event
-        );
+        ).xcbEnforce(backend.connection);
     }
 
     void paint(Context context) {
@@ -306,7 +309,8 @@ class XcbWindow: BackendWindow, VkVGWindow {
         assert(size.width <= ushort.max && size.height <= ushort.max, "Window too big for X11");
         invalidate_event.width = cast(ushort) size.width;
         invalidate_event.height = cast(ushort) size.height;
-        xcb_send_event(backend.connection, false, window, XCB_EVENT_MASK_EXPOSURE, cast(char*) &invalidate_event);
+        xcb_send_event_checked(backend.connection, false, window, XCB_EVENT_MASK_EXPOSURE, cast(char*) &invalidate_event)
+            .xcbEnforce(backend.connection);
         xcb_flush(backend.connection);
     }
 
@@ -333,16 +337,19 @@ class XcbWindow: BackendWindow, VkVGWindow {
         }
 
         const(uint)[2] array = [value.tupleof];
-        xcb_configure_window(backend.connection, window, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, array.ptr);
+        xcb_configure_window_checked(backend.connection, window, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, array.ptr)
+            .xcbEnforce(backend.connection);
     }
 
     Size size() {
         auto reply = xcbEnforce!xcb_get_geometry_reply(backend.connection, xcb_get_geometry(backend.connection, window));
+        scope(exit) free(reply);
         return Size(cast(uint) reply.width, cast(uint) reply.height);
     }
     void size(Size value) {
         const(uint)[2] array = [value.tupleof];
-        xcb_configure_window_checked(backend.connection, window, XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, array.ptr);
+        xcb_configure_window_checked(backend.connection, window, XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, array.ptr)
+            .xcbEnforce(backend.connection);
     }
 
     Size minimumSize() {
@@ -390,10 +397,12 @@ class XcbWindow: BackendWindow, VkVGWindow {
     }
 
     void show() {
-        xcb_map_window(backend.connection, window);
+        xcb_map_window_checked(backend.connection, window)
+            .xcbEnforce(backend.connection);
     }
     void hide() {
-        xcb_unmap_window(backend.connection, window);
+        xcb_unmap_window_checked(backend.connection, window)
+            .xcbEnforce(backend.connection);
     }
     void minimize() {
         uint[5] event = [
@@ -408,7 +417,8 @@ class XcbWindow: BackendWindow, VkVGWindow {
 
     void present() {
         uint value = XCB_STACK_MODE_ABOVE;
-        backend.connection.xcb_configure_window(window, XCB_CONFIG_WINDOW_STACK_MODE, &value);
+        xcb_configure_window_checked(backend.connection, window, XCB_CONFIG_WINDOW_STACK_MODE, &value)
+            .xcbEnforce(backend.connection);
     }
     bool focused() {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
