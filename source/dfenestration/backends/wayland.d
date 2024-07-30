@@ -557,20 +557,23 @@ version (Wayland):
                         window.onHoverEnd(*mouseLocation);
                     }
 
-                    bool leftEdge = location.x < 2 * resizeMarginSize;
-                    bool topEdge = location.y < 2 * resizeMarginSize;
+                    // const scaling = scaling();
+                    const edgeSize = 2 * resizeMarginSize;
+
+                    const leftEdge = location.x < edgeSize;
+                    const topEdge = location.y < edgeSize;
                     if (topEdge && leftEdge) {
                         cursor = CursorType.nwResize;
                         mousePos = WaylandMousePos.resizeEdge(ResizeEdge.topLeft);
                         return;
                     }
-                    bool rightEdge = location.x > sz.width - 2 * resizeMarginSize;
+                    const rightEdge = location.x > sz.width - edgeSize;
                     if (topEdge && rightEdge) {
                         cursor = CursorType.neResize;
                         mousePos = WaylandMousePos.resizeEdge(ResizeEdge.topRight);
                         return;
                     }
-                    bool bottomEdge = location.y > sz.height - 2 * resizeMarginSize;
+                    const bottomEdge = location.y > sz.height - edgeSize;
                     if (bottomEdge && leftEdge) {
                         cursor = CursorType.swResize;
                         mousePos = WaylandMousePos.resizeEdge(ResizeEdge.bottomLeft);
@@ -846,9 +849,11 @@ version (Wayland):
             // FIXME fishy scaling.
             _trueSize = _userSize; // .scale(scaling);
             if (useEmulatedResizeBorders) {
-                xdgSurface.setWindowGeometry(resizeMarginSize, resizeMarginSize, _userSize.scale(scaling).tupleof);
-                _trueSize.width += 2 * resizeMarginSize;
-                _trueSize.height += 2 * resizeMarginSize;
+                auto trueMarginSize = resizeMarginSize * scaling;
+                xdgSurface.setWindowGeometry(cast(int) trueMarginSize, cast(int) trueMarginSize, _userSize.scale(scaling).tupleof);
+                auto trueBorderSize = cast(int) (2 * trueMarginSize);
+                _trueSize.width += trueBorderSize;
+                _trueSize.height += trueBorderSize;
             } else {
                 xdgSurface.setWindowGeometry(0, 0, _userSize.scale(scaling).tupleof);
             }

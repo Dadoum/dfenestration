@@ -43,7 +43,8 @@ class Row: Container!(Widget[]), UsesData!RowData {
         uint totalMinimumExpandSize = 0;
         uint totalNaturalExpandSize = 0;
 
-        bool hasExpandedWidget = false;
+        size_t expandedWidgetCount = 0;
+
         foreach (idx, widget; _content) {
             auto widgetSize = PreferredSize();
 
@@ -60,11 +61,12 @@ class Row: Container!(Widget[]), UsesData!RowData {
             totalNaturalSize += widgetSize.naturalWidth;
 
             if (widget.rowData().expand) {
-                hasExpandedWidget = true;
+                expandedWidgetCount += 1;
                 totalMinimumExpandSize += widgetSize.minimumWidth;
                 totalNaturalExpandSize += widgetSize.naturalWidth;
             }
         }
+        bool hasExpandedWidget = expandedWidgetCount > 0;
 
         if (totalMinimumSize == 0) {
             foreach (ref couple; preferredSizes) {
@@ -83,23 +85,6 @@ class Row: Container!(Widget[]), UsesData!RowData {
             }
         }
 
-        if (totalNaturalSize == 0) {
-            foreach (ref couple; preferredSizes) {
-                couple[1].naturalWidth = 1;
-                if (couple[0].rowData().expand) {
-                    totalNaturalExpandSize += 1;
-                }
-            }
-            totalNaturalSize = cast(uint) preferredSizes.length;
-        } else if (totalNaturalExpandSize == 0) {
-            foreach (ref couple; preferredSizes) {
-                if (couple[0].rowData().expand) {
-                    couple[1].naturalWidth = 1;
-                    totalNaturalExpandSize += 1;
-                }
-            }
-        }
-
         if (totalMinimumSize >= alloc.width) {
             // give to each widgets the same proportion of height
             uint allocatedWidth = 0;
@@ -112,7 +97,7 @@ class Row: Container!(Widget[]), UsesData!RowData {
             uint allocatedWidth = 0;
             foreach (size; preferredSizes) {
                 uint width;
-                if (totalNaturalSize - totalMinimumSize == 0) {
+                if (totalNaturalSize == totalMinimumSize) {
                     width = (size[1].minimumWidth * alloc.width) / totalMinimumSize;
                 } else {
                     width = size[1].minimumWidth + ((size[1].naturalWidth - size[1].minimumWidth) * (alloc.width - totalMinimumSize)) / (totalNaturalSize - totalMinimumSize);
@@ -132,8 +117,11 @@ class Row: Container!(Widget[]), UsesData!RowData {
 
                 uint width;
                 if (rowData.expand) {
-                    // TODO: see why -1 is needed here.
-                    width = (size[1].naturalWidth * (alloc.width - totalUnexpandedSize)) / totalNaturalExpandSize - 1;
+                    if (totalNaturalExpandSize == 0) {
+                        width = (alloc.width - totalUnexpandedSize) / expandedWidgetCount;
+                    } else {
+                        width = (size[1].naturalWidth * (alloc.width - totalUnexpandedSize)) / totalNaturalExpandSize;
+                    }
                 } else {
                     width = size[1].naturalWidth;
                 }

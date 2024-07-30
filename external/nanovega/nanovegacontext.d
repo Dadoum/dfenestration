@@ -6,6 +6,7 @@ import dfenestration.renderers.context;
 
 import arsd.nanovega;
 
+version = NVGClipWorkaround;
 class NanoVegaContext: Context {
     NVGContext context;
 
@@ -16,7 +17,23 @@ class NanoVegaContext: Context {
 
     // void flush() => context.flush(__traits(parameters));
 
+    version (NVGClipWorkaround) {
+        private struct Rectangle {
+            float x;
+            float y;
+            float w;
+            float h;
+            enum zero = Rectangle(0, 0, 0, 0);
+        }
+        bool isPathRectangular = true;
+        Rectangle rectangularPath = Rectangle.zero;
+    }
+
     void newPath() {
+        version (NVGClipWorkaround) {
+            isPathRectangular = true;
+            rectangularPath = Rectangle.zero;
+        }
         context.newPath(__traits(parameters));
     }
     void closePath() => context.closePath(__traits(parameters));
@@ -31,22 +48,34 @@ class NanoVegaContext: Context {
     float x;
     float y;
     void lineTo(float x, float y) {
+        version (NVGClipWorkaround) {
+            isPathRectangular = false;
+        }
         this.x = x;
         this.y = y;
         context.lineTo(__traits(parameters));
     }
     void relLineTo(float dx, float dy) {
+        version (NVGClipWorkaround) {
+            isPathRectangular = false;
+        }
         this.x = x + dx;
         this.y = y + dy;
         context.lineTo(this.x, this.y);
     }
 
     void moveTo(float x, float y) {
+        version (NVGClipWorkaround) {
+            isPathRectangular = false;
+        }
         this.x = x;
         this.y = y;
         context.moveTo(__traits(parameters));
     }
     void relMoveTo(float dx, float dy) {
+        version (NVGClipWorkaround) {
+            isPathRectangular = false;
+        }
         this.x = x + dx;
         this.y = y + dy;
         context.lineTo(this.x, this.y);
@@ -56,11 +85,17 @@ class NanoVegaContext: Context {
     // void arcNegative(float xc, float yc, float radius, float a1, float a2) => context.arcNegative(__traits(parameters));
 
     void curveTo(float x1, float y1, float x2, float y2, float x3, float y3) {
+        version (NVGClipWorkaround) {
+            isPathRectangular = false;
+        }
         this.x = x3;
         this.y = y3;
         context.bezierTo(__traits(parameters));
     }
     void relCurveTo(float dx1, float dy1, float dx2, float dy2, float dx3, float dy3) {
+        version (NVGClipWorkaround) {
+            isPathRectangular = false;
+        }
         context.bezierTo(x + dx1, y + dy1, x + dx2, y + dy2, dx3 + x, dy3 + y);
         this.x = x + dx3;
         this.y = y + dy3;
@@ -68,6 +103,15 @@ class NanoVegaContext: Context {
 
     // void quadraticTo(float x1, float y1, float x2, float y2) => context.quadTo(__traits(parameters));
     void rectangle(float x, float y, float w, float h) {
+        version (NVGClipWorkaround) {
+            if (isPathRectangular) {
+                if (rectangularPath == Rectangle.zero) {
+                    rectangularPath = Rectangle(x, y, w, h);
+                } else {
+                    isPathRectangular = false;
+                }
+            }
+        }
         context.rect(__traits(parameters));
     }
 
@@ -104,12 +148,24 @@ class NanoVegaContext: Context {
     // void paint() => context.paint(__traits(parameters));
     // void clear() => context.clear(__traits(parameters));
 
+    void scissor(float x, float y, float w, float h) {
+        // rectangle(x, y, w, h);
+        // clip();
+        context.scissor(x, y, w, h);
+    }
+
     void clip() {
-        context.clip(__traits(parameters));
+        clipPreserve();
         newPath();
     }
     void clipPreserve() {
-        context.clip(__traits(parameters));
+        version (NVGClipWorkaround) {
+            if (isPathRectangular && rectangularPath != Rectangle.zero) {
+                context.scissor(rectangularPath.tupleof);
+            } else {
+                context.clip();
+            }
+        }
     }
 
     NVGColor color;

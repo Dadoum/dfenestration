@@ -11,6 +11,38 @@ Whereas traditional frameworks are becoming rarer, and harder to use with the ti
 My answer is to make a framework with a somewhat old architecture. Surely not optimal 
 but good enough and easy to use.
 
+## Goals
+
+_and explaining my design choices_
+
+An all-purpose GUI framework written in D. Like GTK or Qt. \
+But not an application framework.
+
+To be more precise, I distinguish the GUI part from the app part.
+
+The GUI is making buttons, sliders, on a window. At the edge of that feature set you 
+have multimedia use (that will be implemented in order to have a video widget), and
+some system-specific stuff such as file picking dialogs. Those would probably be more
+suited for a separate library, that could be re-used across different GUI toolkits (I 
+may make that library too).
+
+Application stuff like IPC, app instance management, command line handling is ignored
+here, and hopefully someone else will tackle that in another library (again, if no one
+wants to make a separate library, I may do that).
+
+Some choices have been made in that sense:
+- Using as much library written in D as possible.
+- ...although text is rendered with FreeType and Harfbuzz, and Fribidi is used. I am not
+an expert in every language of this world, so using the standard is better here. 
+- Accessibility should work correctly at the end. This may imply using access-kit
+to ensure a correct support for every platform.
+
+> Why not modularizing the backend part from the widget part? It would allow re-use
+> in other projects.
+
+I want to do that. I think that would be better. But for now everything is integrated
+because splitting everything from the start is unpractical for development.
+
 ## WIP
 
 - bug, windows are not appearing.
@@ -22,11 +54,9 @@ but good enough and easy to use.
 
 ## Known bugs
 
-- OpenGL backend's NanoVega clips incorrectly, leaving one pixel wide errors on every 
-clipping operation.
 - Resizing from the top left corner with the Vulkan backend is making the window jump 
 the first time.
-- Resizing a vulkan window is a bit laggy (VkVG issue tho).
+- Resizing a vulkan window is a bit laggy (it's a VkVG issue tho).
 
 ## Support
 

@@ -371,10 +371,10 @@ version (VkVG) {
             width = min(max(width, capabilities.minImageExtent.width), capabilities.maxImageExtent.width);
             height = min(max(height, capabilities.minImageExtent.height), capabilities.maxImageExtent.height);
 
-            auto scaling = window.scaling();
-            uint hdpy = cast(uint) (96 * scaling);
-            uint vdpy = cast(uint) (96 * scaling);
-            vkvgRendererProperties.vkvgDevice.setDpy(hdpy, vdpy);
+            // auto scaling = window.scaling();
+            // uint hdpy = cast(uint) (96 * scaling);
+            // uint vdpy = cast(uint) (96 * scaling);
+            // vkvgRendererProperties.vkvgDevice.setDpy(hdpy, vdpy);
             vkvgRendererProperties.vkvgSurface = new Surface(vkvgRendererProperties.vkvgDevice, width, height);
 
             VkSwapchainCreateInfoKHR swapchainCreateInfo = vkvgRendererProperties.swapchainCreateInfo;
@@ -678,6 +678,8 @@ version (VkVG) {
 
             {
                 scope context = new VkVGContext(vulkanProps.vkvgSurface);
+                auto scaling = window.scaling();
+                context.scale(scaling, scaling);
                 window.paint(context);
             }
 

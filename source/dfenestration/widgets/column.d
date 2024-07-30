@@ -43,7 +43,8 @@ class Column: Container!(Widget[]), UsesData!ColumnData {
         uint totalMinimumExpandSize = 0;
         uint totalNaturalExpandSize = 0;
 
-        bool hasExpandedWidget = false;
+        size_t expandedWidgetCount = 0;
+
         foreach (idx, widget; _content) {
             auto widgetSize = PreferredSize();
 
@@ -60,11 +61,12 @@ class Column: Container!(Widget[]), UsesData!ColumnData {
             totalNaturalSize += widgetSize.naturalHeight;
 
             if (widget.columnData().expand) {
-                hasExpandedWidget = true;
+                expandedWidgetCount += 1;
                 totalMinimumExpandSize += widgetSize.minimumHeight;
                 totalNaturalExpandSize += widgetSize.naturalHeight;
             }
         }
+        bool hasExpandedWidget = expandedWidgetCount > 0;
 
         if (totalMinimumSize == 0) {
             foreach (ref couple; preferredSizes) {
@@ -83,23 +85,6 @@ class Column: Container!(Widget[]), UsesData!ColumnData {
             }
         }
 
-        if (totalNaturalSize == 0) {
-            foreach (ref couple; preferredSizes) {
-                couple[1].naturalHeight = 1;
-                if (couple[0].columnData().expand) {
-                    totalNaturalExpandSize += 1;
-                }
-            }
-            totalNaturalSize = cast(uint) preferredSizes.length;
-        } else if (totalNaturalExpandSize == 0) {
-            foreach (ref couple; preferredSizes) {
-                if (couple[0].columnData().expand) {
-                    couple[1].naturalHeight = 1;
-                    totalNaturalExpandSize += 1;
-                }
-            }
-        }
-
         if (totalMinimumSize >= alloc.height) {
             // give to each widgets the same proportion of height
             uint allocatedHeight = 0;
@@ -112,7 +97,7 @@ class Column: Container!(Widget[]), UsesData!ColumnData {
             uint allocatedHeight = 0;
             foreach (size; preferredSizes) {
                 uint height;
-                if (totalNaturalSize - totalMinimumSize == 0) {
+                if (totalNaturalSize == totalMinimumSize) {
                     height = (size[1].minimumHeight * alloc.height) / totalMinimumSize;
                 } else {
                     height = size[1].minimumHeight + ((size[1].naturalHeight - size[1].minimumHeight) * (alloc.height - totalMinimumSize)) / (totalNaturalSize - totalMinimumSize);
@@ -132,8 +117,11 @@ class Column: Container!(Widget[]), UsesData!ColumnData {
 
                 uint height;
                 if (columnData.expand) {
-                    // TODO: check why -1 is needed here.
-                    height = (size[1].naturalHeight * (alloc.height -  totalUnexpandedSize)) / totalNaturalExpandSize - 1;
+                    if (totalNaturalExpandSize == 0) {
+                        height = (alloc.height - totalUnexpandedSize) / expandedWidgetCount;
+                    } else {
+                        height = (size[1].naturalHeight * (alloc.height -  totalUnexpandedSize)) / totalNaturalExpandSize;
+                    }
                 } else {
                     height = size[1].naturalHeight;
                 }

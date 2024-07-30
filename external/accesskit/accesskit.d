@@ -83,7 +83,7 @@ enum accesskit_action
      */
     setSequentialFocusNavigationStartingPoint = 21,
     /**
-     * Replace the value of the control with the specified value and
+     * Replace thescaling value of the control with the specified value and
      * reset the selection, if applicable. Requires [`ActionRequest::data`]
      * to be set to [`ActionData::Value`] or [`ActionData::NumericValue`].
      */
