@@ -25,10 +25,15 @@ class WindowFrame: Bin {
         super.content = new Column() [
             new WindowHandle() [
                 new Row() [
+                    // TODO: add window icon
                     // TODO: use EllipsisText
                     titleText = new Text("DFENESTRATION ERROR - SET THE TITLE FIRST").layoutProperties!Row(/+ expand +/ true),
                     // new Spacer().layoutProperties!Row(/+ expand +/ true),
                     new class Button { override void onPress(Point location, MouseButton button) => window.minimize(); } [
+                        new Test()
+                            .size(Size(24, 24))
+                    ],
+                    new class Button { override void onPress(Point location, MouseButton button) { window.maximized = !window.maximized; } } [
                         new Test()
                             .size(Size(24, 24))
                     ],
@@ -55,13 +60,6 @@ class WindowFrame: Bin {
         onStateChange();
         onSizeAllocate();
         return this;
-    }
-
-    override void draw(Context context, Rectangle rectangle) {
-        context.sourceRgb(1, 1, 1);
-        context.rectangle(0, 0, allocation.size.tupleof);
-        context.fill();
-        super.draw(context, rectangle);
     }
 
     string title() { return titleText.text; }

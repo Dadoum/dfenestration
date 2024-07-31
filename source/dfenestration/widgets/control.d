@@ -23,16 +23,22 @@ mixin template Control() {
     }
 
     override bool onClickStart(Point location, MouseButton button) {
-        widgetState = widgetState | WidgetState.pressed;
+        if (button == MouseButton.left) {
+            widgetState = widgetState | WidgetState.pressed;
+        }
         return true;
     }
     override bool onClickEnd(Point location, MouseButton button) {
-        if (widgetState & WidgetState.pressed) {
+        if (button == MouseButton.left && (widgetState & WidgetState.pressed)) {
             widgetState = widgetState & ~WidgetState.pressed;
             onPress(location, button);
         }
         return true;
     }
+
+    override bool onTouchStart(Point location) { return onClickStart(location, MouseButton.left); }
+    override bool onTouchMove(Point location) { return onHover(location); }
+    override bool onTouchEnd(Point location) { return onClickEnd(location, MouseButton.left); }
 }
 
 enum WidgetState {

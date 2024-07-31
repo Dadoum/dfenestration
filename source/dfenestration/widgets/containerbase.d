@@ -46,8 +46,17 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
     void sizeAllocate(Rectangle allocationExtent, Widget widget) {
         widget.allocation = allocationExtent;
         // enforce(widget.parent is null, "Widget " ~ widget.toString() ~ " already has another parent!!");
-        widget.parent = this;
-        allocations ~= tuple(widget, allocationExtent);
+        if (widget.parent == this) {
+            foreach (index, allocation; allocations) {
+                if (allocation[0] == widget) {
+                    allocations[index] = tuple(widget, allocationExtent);
+                    break;
+                }
+            }
+        } else {
+            widget.parent = this;
+            allocations ~= tuple(widget, allocationExtent);
+        }
     }
 
     override void draw(Context context, Rectangle invalidatedRect) {

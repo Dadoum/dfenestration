@@ -4,6 +4,9 @@ import dfenestration.widgets.container;
 import dfenestration.widgets.control;
 import dfenestration.widgets.widget;
 
+public import dfenestration.primitives;
+public import dfenestration.types;
+
 abstract class Button: Container!Widget {
     mixin Control;
 

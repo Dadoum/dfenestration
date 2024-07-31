@@ -136,9 +136,16 @@ class Window: Container!Widget {
      +/
     void paint(Context context) {
         if (invalidatedZone != Rectangle.zero) {
-            super.draw(context, invalidatedZone);
+            draw(context, invalidatedZone);
             invalidatedZone = Rectangle.zero;
         }
+    }
+
+    override void draw(Context context, Rectangle rectangle) {
+        context.sourceRgb(1, 1, 1);
+        context.rectangle(0, 0, allocation.size.tupleof);
+        context.fill();
+        super.draw(context, rectangle);
     }
 
     override Window window() {

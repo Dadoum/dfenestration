@@ -12,7 +12,7 @@ import dfenestration.widgets.widget;
  +/
 class Column: Container!(Widget[]), UsesData!ColumnData {
     struct _ {
-        uint spacing;
+        uint spacing = 0;
     }
     mixin State!_;
 
@@ -26,6 +26,8 @@ class Column: Container!(Widget[]), UsesData!ColumnData {
         }
 
         auto alloc = allocation();
+        const spacing = spacing();
+        alloc.height -= (_content.length - 1) * spacing;
 
         struct PreferredSize {
             uint minimumWidth;
@@ -91,7 +93,7 @@ class Column: Container!(Widget[]), UsesData!ColumnData {
             foreach (size; preferredSizes) {
                 uint height = (size[1].minimumHeight * alloc.height) / totalMinimumSize;
                 sizeAllocate(Rectangle(0, allocatedHeight, alloc.width, height), size[0]);
-                allocatedHeight += height;
+                allocatedHeight += height + spacing;
             }
         } else if (/+ +/ !hasExpandedWidget || totalNaturalSize > alloc.height) {
             uint allocatedHeight = 0;
@@ -103,7 +105,7 @@ class Column: Container!(Widget[]), UsesData!ColumnData {
                     height = size[1].minimumHeight + ((size[1].naturalHeight - size[1].minimumHeight) * (alloc.height - totalMinimumSize)) / (totalNaturalSize - totalMinimumSize);
                 }
                 sizeAllocate(Rectangle(0, allocatedHeight, alloc.width, height), size[0]);
-                allocatedHeight += height;
+                allocatedHeight += height + spacing;
             }
         } else {
             uint allocatedHeight = 0;
@@ -126,7 +128,7 @@ class Column: Container!(Widget[]), UsesData!ColumnData {
                     height = size[1].naturalHeight;
                 }
                 sizeAllocate(Rectangle(0, allocatedHeight, alloc.width, height), size[0]);
-                allocatedHeight += height;
+                allocatedHeight += height + spacing;
             }
         }
 
@@ -141,8 +143,8 @@ class Column: Container!(Widget[]), UsesData!ColumnData {
     ) {
         minimumWidth = 0;
         naturalWidth = 0;
-        minimumHeight = 0;
-        naturalHeight = 0;
+        minimumHeight = cast(uint) (_content.length - 1) * spacing;
+        naturalHeight = cast(uint) (_content.length - 1) * spacing;
 
         if (_content.length == 0) {
             return;

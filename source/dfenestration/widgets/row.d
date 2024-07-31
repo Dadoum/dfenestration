@@ -12,7 +12,7 @@ import std.logger;
  +/
 class Row: Container!(Widget[]), UsesData!RowData {
     struct _ {
-        uint spacing;
+        uint spacing = 0;
     }
     mixin State!_;
 
@@ -26,6 +26,8 @@ class Row: Container!(Widget[]), UsesData!RowData {
         }
 
         auto alloc = allocation();
+        const spacing = spacing();
+        alloc.width -= (_content.length - 1) * spacing;
 
         struct PreferredSize {
             uint minimumWidth;
@@ -91,7 +93,7 @@ class Row: Container!(Widget[]), UsesData!RowData {
             foreach (size; preferredSizes) {
                 uint width = (size[1].minimumWidth * alloc.width) / totalMinimumSize;
                 sizeAllocate(Rectangle(allocatedWidth, 0, width, alloc.height), size[0]);
-                allocatedWidth += width;
+                allocatedWidth += width + spacing;
             }
         } else if (!hasExpandedWidget || totalNaturalSize > alloc.width) {
             uint allocatedWidth = 0;
@@ -103,7 +105,7 @@ class Row: Container!(Widget[]), UsesData!RowData {
                     width = size[1].minimumWidth + ((size[1].naturalWidth - size[1].minimumWidth) * (alloc.width - totalMinimumSize)) / (totalNaturalSize - totalMinimumSize);
                 }
                 sizeAllocate(Rectangle(allocatedWidth, 0, width, alloc.height), size[0]);
-                allocatedWidth += width;
+                allocatedWidth += width + spacing;
             }
         } else {
             uint allocatedWidth = 0;
@@ -126,7 +128,7 @@ class Row: Container!(Widget[]), UsesData!RowData {
                     width = size[1].naturalWidth;
                 }
                 sizeAllocate(Rectangle(allocatedWidth, 0, width, alloc.height), size[0]);
-                allocatedWidth += width;
+                allocatedWidth += width + spacing;
             }
         }
 
@@ -139,8 +141,8 @@ class Row: Container!(Widget[]), UsesData!RowData {
         out uint minimumHeight,
         out uint naturalHeight
     ) {
-        minimumWidth = 0;
-        naturalWidth = 0;
+        minimumWidth = cast(uint) (_content.length - 1) * spacing;
+        naturalWidth = cast(uint) (_content.length - 1) * spacing;
         minimumHeight = 0;
         naturalHeight = 0;
 

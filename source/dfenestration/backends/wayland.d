@@ -628,12 +628,15 @@ version (Wayland):
         void onTouchStart(Point location) {
             location = location.unscale(scaling);
             if (useEmulatedResizeBorders) {
-                location.x -= resizeMarginSize;
-                location.y -= resizeMarginSize;
                 auto sz = _trueSize;
-                if (location.x < 0 || location.y < 0 || location.x > sz.width + resizeMarginSize || location.y > sz.height + resizeMarginSize) {
+                if (location.x < resizeMarginSize || location.y < resizeMarginSize || location.x > sz.width + 2 * resizeMarginSize || location.y > sz.height + 2 * resizeMarginSize) {
+                    warning("Attempted to resize the window with touch: this is not yet supported.");
+                    // onHover(location);
+                    // onClickStart(MouseButton.left);
                     return;
                 }
+                location.x -= resizeMarginSize;
+                location.y -= resizeMarginSize;
             }
 
             window.onTouchStart(location);

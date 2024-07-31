@@ -13,12 +13,29 @@ int main() {
 	import std.logger;
 	(cast() sharedLog).logLevel = LogLevel.trace;
 
+	import dfenestration.widgets.aligner;
+	import dfenestration.widgets.button;
+
 	auto window =
 		new Window()
 			.title("Dfenestration example")
 		[
-			new Test()
-				.size(Size(200, 200))
+			new Aligner()
+			[
+				new Column()
+					.spacing(8)
+				[
+					new Test()
+						.size(Size(200, 200))
+						.naturalSize(Size(300, 300)),
+
+					new class Button { override void onPress(Point, MouseButton) { info("Click registered!"); } }
+					[
+						new Test()
+							.size(Size(24, 24))
+					]
+				]
+			],
 		];
 
 	// force client-side decorations
