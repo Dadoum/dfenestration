@@ -611,9 +611,10 @@ version (Wayland):
 
                     enforce(false, "Impossible edge touched.");
                 }
+
+                location.x -= resizeMarginSize;
+                location.y -= resizeMarginSize;
             }
-            location.x -= resizeMarginSize;
-            location.y -= resizeMarginSize;
 
             cursor = CursorType.default_;
 
