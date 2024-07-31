@@ -3,6 +3,7 @@ description "A minimal D application."
 authors "Dadoum"
 license "proprietary"
 sourcePaths "source"
+dflags "-link-defaultlib-shared=false"
 
 dependency "arsd-official:color_base" repository="git+https://github.com/Dadoum/arsd.git" version="32c2d2c5baf44afd864bac723a231ffc92df8986"
 dependency "bindbc-freetype" version="~>1.2.6"

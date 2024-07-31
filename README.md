@@ -11,6 +11,45 @@ Whereas traditional frameworks are becoming rarer, and harder to use with the ti
 My answer is to make a framework with a somewhat old architecture. Surely not optimal 
 but good enough and easy to use.
 
+
+
+## Example code
+
+```d
+import dfenestration.widgets.aligner;
+import dfenestration.widgets.button;
+import dfenestration.widgets.column;
+import dfenestration.widgets.test;
+import dfenestration.widgets.text;
+import dfenestration.widgets.window;
+import dfenestration.primitives;
+
+int main() 
+    => new Window()
+            .title("Dfenestration example")
+        [
+            new Aligner()
+            [
+                new Column()
+                    .spacing(8)
+                [
+                    new Test()
+                        .size(Size(200, 200))
+                        .naturalSize(Size(300, 300)),
+
+                    new class Button { override void onPress(Point, MouseButton) { info("Click registered!"); } }
+                    [
+                        new Text("Hello!!")
+                    ]
+                ]
+            ],
+        ].run();
+```
+
+Screenshot of that example (as of 2024-07-31, Wayland without server decorations + OpenGL):
+
+![Screenshot of the example on Wayland with an OpenGL renderer (2024-07-31)](screenshots/example-readme-wayland-gl.png)
+
 ## Goals
 
 _and explaining my design choices_
@@ -58,26 +97,24 @@ because splitting everything from the start is unpractical for development.
 the first time.
 - Resizing a vulkan window is a bit laggy (it's a VkVG issue tho).
 
-## Support
+## Current support
 
 Wayland with relatively recent protocols.
-
-X11 (TODO)
 
 ## Roadmap
 
 - Platform support
 
-  |                     | Software | OpenGL      | Vulkan      | Metal |
-  |---------------------|----------|-------------|-------------|-------|
-  | Wayland (xdg-shell) |          | OK          | OK          | -     |
-  | X11                 |          |             | wip         | -     |
-  | Windows             |          |             |             | -     |
-  | macOS               |          | not planned | not planned |       |
+  |                     | Software | OpenGL | Vulkan | Metal |
+  |---------------------|----------|--------|--------|-------|
+  | Wayland (xdg-shell) |          | OK     | OK     | -     |
+  | X11                 |          |        | wip    | -     |
+  | Windows             |          |        |        | -     |
+  | macOS               |          | maybe  | maybe  |       |
 
-For now, other platforms are not planned. I used xdg-shell for Wayland as it is
-seemingly the one here to stay. Even if it lacks some features when compared to
-wl-shell-surface.
+For now, support for other platforms is not planned. I used xdg-shell for Wayland as
+it is now the standard. Don't be surprised if some of the things GTK+ 3 does are working
+differently in dfenestration (it used wl-shell-surface).
 
 - Accessibility
   - [ ] Access-kit
@@ -107,12 +144,6 @@ Priority:
 - Platform support: macOS (Software)
 - Accessibility: macOS
 - Blur effects on Windows, macOS and KDE
-
-## Example code
-
-```d
-// too early stage 
-```
 
 ## Credits
 

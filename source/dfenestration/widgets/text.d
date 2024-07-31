@@ -8,6 +8,7 @@ import dfenestration.widgets.widget;
 class Text: Widget {
     struct WState {
         string text;
+        bool selectable = true;
     }
     mixin State!WState;
 

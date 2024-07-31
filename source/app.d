@@ -1,20 +1,15 @@
 import std.logger;
 
-import dfenestration.widgets.widget;
+import dfenestration.widgets.aligner;
+import dfenestration.widgets.button;
 import dfenestration.widgets.column;
-import dfenestration.widgets.container;
 import dfenestration.widgets.test;
 import dfenestration.widgets.text;
 import dfenestration.widgets.window;
-import dfenestration.widgets.windowhandle;
 import dfenestration.primitives;
 
 int main() {
-	import std.logger;
 	(cast() sharedLog).logLevel = LogLevel.trace;
-
-	import dfenestration.widgets.aligner;
-	import dfenestration.widgets.button;
 
 	auto window =
 		new Window()
@@ -31,8 +26,7 @@ int main() {
 
 					new class Button { override void onPress(Point, MouseButton) { info("Click registered!"); } }
 					[
-						new Test()
-							.size(Size(24, 24))
+						new Text(text: "Hello!!")
 					]
 				]
 			],
@@ -55,6 +49,7 @@ int main() {
 		new Test()
 	];
 	childWin.backendWindow.parent = window.backendWindow;
+	window.show();
 	childWin.show();
 
 	import std.datetime;
