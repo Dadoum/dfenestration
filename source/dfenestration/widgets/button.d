@@ -17,7 +17,7 @@ abstract class Button: Container!Widget {
     mixin State!_;
 
     this() {
-        cursor = CursorType.progress;
+        cursor = CursorType.pointer;
     }
 
     override void preferredSize(

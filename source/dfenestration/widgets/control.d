@@ -15,7 +15,6 @@ mixin template Control() {
     }
     override bool onHoverStart(Point location) {
         widgetState = widgetState | WidgetState.hovered;
-        window().setCursor(cursor);
         return true;
     }
     override bool onHoverEnd(Point location) {

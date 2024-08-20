@@ -179,6 +179,11 @@ class Window: Container!Widget {
         backendWindow.cursor(cursor);
     }
 
+    override bool onHoverStart(Point location) {
+        window.scheduleCursorUpdate();
+        return super.onHoverStart(location);
+    }
+
     /++
      + Window title.
      + Default: ""
@@ -308,6 +313,17 @@ class Window: Container!Widget {
      + Request window to be resized from a given edge. May be ignored.
      +/
     void resizeDrag(ResizeEdge edge) { backendWindow.resizeDrag(edge); }
+
+    bool cursorUpdateScheduled = false;
+    final void scheduleCursorUpdate() {
+        if (!cursorUpdateScheduled) {
+            cursorUpdateScheduled = true;
+            runInMainThread({
+                setCursor(cursor);
+                cursorUpdateScheduled = false;
+            });
+        }
+    }
 
     void runInMainThread(void delegate() func) {
         backend.runInMainThread(func);

@@ -31,7 +31,7 @@ abstract class Widget {
      + Returns true if the hover has been captured.
      +/
     bool onHover(Point location) { return false; }
-    bool onHoverStart(Point location) { import std.logger; info(this); window().setCursor(cursor); return false; }
+    bool onHoverStart(Point location) { return false; }
     bool onHoverEnd(Point location) { return false; }
 
     /++

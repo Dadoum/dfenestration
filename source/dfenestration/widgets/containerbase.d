@@ -13,7 +13,11 @@ import dfenestration.widgets.widget;
  + tree). It layouts and dispatches events to allocated widgets.
  +/
 abstract class ContainerBase: Widget, UsesData!ContainerData {
-    Tuple!(Widget, Rectangle)[] allocations;
+    struct Allocation {
+        Widget widget;
+        Rectangle extent;
+    }
+    Allocation[] allocations;
 
     override ContainerBase allocation(Rectangle value) {
         super.allocation(value);
@@ -31,7 +35,7 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
      +/
     abstract bool onSizeAllocate() {
         foreach (allocation; allocations) {
-            auto widget = allocation[0];
+            auto widget = allocation.widget;
             if (widget.parent == this)
                 widget.parent = null;
         }
@@ -47,23 +51,23 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
         widget.allocation = allocationExtent;
         // enforce(widget.parent is null, "Widget " ~ widget.toString() ~ " already has another parent!!");
         if (widget.parent == this) {
-            foreach (index, allocation; allocations) {
-                if (allocation[0] == widget) {
-                    allocations[index] = tuple(widget, allocationExtent);
-                    break;
+            foreach (index, ref allocation; allocations) {
+                if (allocation.widget == widget) {
+                    allocation.extent = allocationExtent;
+                    return;
                 }
             }
-        } else {
-            widget.parent = this;
-            allocations ~= tuple(widget, allocationExtent);
         }
+
+        widget.parent = this;
+        allocations ~= Allocation(widget, allocationExtent);
     }
 
     override void draw(Context context, Rectangle invalidatedRect) {
         super.draw(context, invalidatedRect);
         foreach (allocation; allocations) {
-            auto widget = allocation[0];
-            auto allocatedRect = allocation[1];
+            auto widget = allocation.widget;
+            auto allocatedRect = allocation.extent;
             auto rectangle = invalidatedRect.intersect(allocatedRect);
             if (rectangle != Rectangle.zero) {
                 context.save();
@@ -88,12 +92,22 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
         }
     }
 
-    Widget hoveredWidget = null;
+    Widget _hoveredWidget = null;
+    pragma(inline, true)
+    final Widget hoveredWidget() {
+        return _hoveredWidget;
+    }
+    pragma(inline, true)
+    final void hoveredWidget(Widget widget) {
+        _hoveredWidget = widget;
+        window.scheduleCursorUpdate();
+    }
+
     override bool onHoverStart(Point location) {
         // bool val = super.onHoverStart(location);
         foreach_reverse (allocation; allocations) {
-            auto widget = allocation[0];
-            auto rectangle = allocation[1];
+            auto widget = allocation.widget;
+            auto rectangle = allocation.extent;
             if (rectangle.contains(location)) {
                 location.x -= rectangle.x;
                 location.y -= rectangle.y;
@@ -108,10 +122,18 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
         return false;
     }
 
+    override CursorType cursor() {
+        return hoveredWidget ? hoveredWidget.cursor() : super.cursor();
+    }
+
+    override Widget cursor(CursorType cursor) {
+        return super.cursor(cursor);
+    }
+
     override bool onHover(Point location) {
         foreach_reverse (allocation; allocations) {
-            auto widget = allocation[0];
-            auto rectangle = allocation[1];
+            auto widget = allocation.widget;
+            auto rectangle = allocation.extent;
             if (rectangle.contains(location)) {
                 auto relativeLocation = Point(location.x - rectangle.x, location.y - rectangle.y);
                 if (hoveredWidget != widget) {
@@ -120,6 +142,7 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
                         if (hoveredWidget) {
                             hoveredWidget.onHoverEnd(relativeLocation);
                         }
+
                         hoveredWidget = widget;
                     } else {
                         // if not, consider it transparent.
@@ -135,8 +158,10 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
             auto rectangle = hoveredWidget.allocation;
             auto relativeLocation = Point(location.x - rectangle.x, location.y - rectangle.y);
             hoveredWidget.onHoverEnd(relativeLocation);
+
             hoveredWidget = null;
         }
+
         return false;
     }
 
@@ -151,8 +176,8 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
 
     override bool onClickStart(Point location, MouseButton button) {
         foreach_reverse (allocation; allocations) {
-            auto widget = allocation[0];
-            auto rectangle = allocation[1];
+            auto widget = allocation.widget;
+            auto rectangle = allocation.extent;
             if (rectangle.contains(location)) {
                 location.x -= rectangle.x;
                 location.y -= rectangle.y;
@@ -165,8 +190,8 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
 
     override bool onClickEnd(Point location, MouseButton button) {
         foreach_reverse (allocation; allocations) {
-            auto widget = allocation[0];
-            auto rectangle = allocation[1];
+            auto widget = allocation.widget;
+            auto rectangle = allocation.extent;
             if (rectangle.contains(location)) {
                 location.x -= rectangle.x;
                 location.y -= rectangle.y;
@@ -180,8 +205,8 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
     Widget touchedWidget;
     override bool onTouchStart(Point location) {
         foreach_reverse (allocation; allocations) {
-            auto widget = allocation[0];
-            auto rectangle = allocation[1];
+            auto widget = allocation.widget;
+            auto rectangle = allocation.extent;
             if (rectangle.contains(location)) {
                 location.x -= rectangle.x;
                 location.y -= rectangle.y;
@@ -198,8 +223,8 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
 
     override bool onTouchMove(Point location) {
         foreach_reverse (allocation; allocations) {
-            auto widget = allocation[0];
-            auto rectangle = allocation[1];
+            auto widget = allocation.widget;
+            auto rectangle = allocation.extent;
             if (rectangle.contains(location)) {
                 auto relativeLocation = Point(location.x - rectangle.x, location.y - rectangle.y);
                 if (touchedWidget != widget && touchedWidget) {
@@ -241,8 +266,7 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
      +/
     void forall(void delegate(Widget) callback) {
         foreach (allocation; allocations) {
-            auto widget = allocation[0];
-            callback(widget);
+            callback(allocation.widget);
         }
     }
 

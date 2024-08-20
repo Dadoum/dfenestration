@@ -703,7 +703,6 @@ version (Wayland):
         }
 
         void cursor(CursorType type) {
-            info(type);
             if (backend.pointerShape) {
                 WpCursorShapeDeviceV1.Shape cursorShape;
                 with (CursorType) switch (type) {

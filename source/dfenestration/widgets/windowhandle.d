@@ -15,13 +15,17 @@ class WindowHandle: Bin {
 
     }
 
-    override bool onHoverStart(Point location) { return true; }
+    override bool onHoverStart(Point location) {
+        super.onHoverStart(location);
+        return true;
+    }
     override bool onHover(Point location) {
         if (pressed) {
             window.moveDrag();
             return super.onHoverEnd(location);
         }
-        return super.onHover(location);
+        super.onHover(location);
+        return true;
     }
     override bool onHoverEnd(Point location) {
         pressed = false;

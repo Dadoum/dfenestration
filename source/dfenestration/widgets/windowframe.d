@@ -43,7 +43,7 @@ class WindowFrame: Bin {
                     ]
                 ]
             ],
-            contentBin = new Bin().layoutProperties!Column(/+ expand +/ true)[
+            contentBin = new Bin().layoutProperties!Column(/+ expand +/ true) [
                 nullWidget
             ]
         ];
