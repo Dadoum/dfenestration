@@ -77,6 +77,7 @@ version (Wayland):
 
         WaylandWindow currentWindow = null;
         uint currentSerial = 0;
+        uint enterSerial = 0;
 
         this() {
             super();
@@ -126,6 +127,7 @@ version (Wayland):
 
             pointer.onEnter = (pointer, serial, surface, x, y) {
                 currentSerial = serial;
+                enterSerial = serial;
                 currentWindow = cast(WaylandWindow) wl_proxy_get_user_data(surface.proxy());
                 currentWindow.onHoverStart(Point(cast(int) x, cast(int) y));
             };
@@ -810,7 +812,7 @@ version (Wayland):
                         cursorShape = WpCursorShapeDeviceV1.Shape.zoomOut;
                         break;
                 }
-                backend.pointerShape.setShape(backend.currentSerial, cursorShape);
+                backend.pointerShape.setShape(backend.enterSerial, cursorShape);
             }
         }
 
