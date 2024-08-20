@@ -12,7 +12,7 @@ import dfenestration.widgets.widget;
  +/
 class Column: Container!(Widget[]), UsesData!ColumnData {
     struct _ {
-        uint spacing = 0;
+        @TriggerWindowSizeAllocation uint spacing = 0;
     }
     mixin State!_;
 

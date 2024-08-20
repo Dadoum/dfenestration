@@ -6,11 +6,16 @@ import dfenestration.widgets.widget;
  + A widget displaying some incompressible text.
  +/
 class Text: Widget {
-    struct WState {
-        string text;
+    struct _ {
+        @TriggerWindowSizeAllocation string text;
         bool selectable = true;
     }
-    mixin State!WState;
+    mixin State!_;
+
+    override bool onHoverStart(Point location) {
+        window.cursor();
+        return super.onHoverStart(location);
+    }
 
     this(string text) {
         this.text = text;

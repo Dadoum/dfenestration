@@ -4,17 +4,18 @@ import dfenestration.widgets.widget;
 
 mixin template Control() {
     private struct _ {
-        WidgetState widgetState;
+        @TriggerRedraw WidgetState widgetState;
     }
 
     mixin State!_;
 
     override bool onHover(Point location) {
-        super.onHover(__traits(parameters));
+        // super.onHover(__traits(parameters));
         return true;
     }
     override bool onHoverStart(Point location) {
         widgetState = widgetState | WidgetState.hovered;
+        window().setCursor(cursor);
         return true;
     }
     override bool onHoverEnd(Point location) {

@@ -15,8 +15,11 @@ import dfenestration.widgets.widget;
  + See more information in the ContainerBase class.
  +/
 abstract class Container(ContainedType): ContainerBase {
-    mixin State;
-    ContainedType _content;
+    struct _ {
+        /// Apparent content.
+        @TriggerWindowSizeAllocation ContainedType content;
+    }
+    mixin State!_;
 
     abstract override bool onSizeAllocate() {
         if (_content is null) {
@@ -31,19 +34,6 @@ abstract class Container(ContainedType): ContainerBase {
         } else {
             return [cast(Widget) _content];
         }
-    }
-
-    /++
-     + Apparent content.
-     +/
-    @StateGetter ContainedType content() {
-        return _content;
-    }
-    @StateSetter Container content(ContainedType newContent) {
-        _content = newContent;
-        onStateChange();
-        onSizeAllocate();
-        return this;
     }
 
     /++

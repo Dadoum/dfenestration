@@ -531,8 +531,6 @@ version (Wayland):
         }
 
         void onHoverStart(Point location) {
-            cursor = CursorType.default_;
-
             // HACK:
             // Dragging a window sends hover end. Dropping it send hover start without sending a corresponding hover.
             // As such, we need to remember of the last hover location, and to do that we will just change the tag of
@@ -615,8 +613,6 @@ version (Wayland):
                 location.x -= resizeMarginSize;
                 location.y -= resizeMarginSize;
             }
-
-            cursor = CursorType.default_;
 
             if (mousePos.tag != WaylandMousePos.Tag.insideWindow) {
                 window.onHoverStart(location);
@@ -707,6 +703,7 @@ version (Wayland):
         }
 
         void cursor(CursorType type) {
+            info(type);
             if (backend.pointerShape) {
                 WpCursorShapeDeviceV1.Shape cursorShape;
                 with (CursorType) switch (type) {

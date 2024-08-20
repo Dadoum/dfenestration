@@ -14,11 +14,13 @@ import dfenestration.widgets.window;
 abstract class Widget {
     private struct _ {
         /// In the internal widget tree
-        ContainerBase parent;
+        @Trigger!(Widget.cacheWindow) ContainerBase parent;
         /// In the apparent widget tree
         ContainerData parentData;
         /// Space given to the widget inside the parent container allocation.
-        Rectangle allocation;
+        @TriggerRedraw Rectangle allocation;
+        /// Cursor shown when hovering the widget
+        CursorType cursor = CursorType.default_;
     }
     mixin State!_;
 
@@ -29,7 +31,7 @@ abstract class Widget {
      + Returns true if the hover has been captured.
      +/
     bool onHover(Point location) { return false; }
-    bool onHoverStart(Point location) { return false; }
+    bool onHoverStart(Point location) { import std.logger; info(this); window().setCursor(cursor); return false; }
     bool onHoverEnd(Point location) { return false; }
 
     /++
@@ -71,26 +73,12 @@ abstract class Widget {
     }
 
     /++
-     + Window containing the widget.
-     +/
-    Window window() {
-        return parent.window();
-    }
-
-    /++
      + Request the widget to be redrawn.
      +/
     void invalidate() {
         if (parent) {
             parent.invalidate(allocation);
         }
-    }
-
-    /++
-     + Automatically called when a field declared in the state mixin is changed.
-     +/
-    void onStateChange() {
-        invalidate();
     }
 
     /++
@@ -159,6 +147,24 @@ abstract class Widget {
         parentData = data;
         return cast(R) this;
     }
+
+    final void scheduleWindowSizeAllocation() {
+        if (auto window = window()) {
+            window.scheduleSizeAllocation();
+        }
+    }
+
+    Window _window;
+    final void cacheWindow() {
+        _window = parent !is null ? parent._window : null;
+        if (ContainerBase container = cast(ContainerBase) this) {
+            container.forall((widget) { widget.cacheWindow(); });
+        }
+    }
+
+    final Window window() {
+        return _window;
+    }
 }
 
 struct StateGetter {}
@@ -192,6 +198,10 @@ mixin template State() {
     }
 }
 
+struct Trigger(alias U) {}
+alias TriggerRedraw = Trigger!(Widget.invalidate);
+alias TriggerWindowSizeAllocation = Trigger!(Widget.scheduleWindowSizeAllocation);
+
 mixin template State(StateStructure) {
     mixin State;
 
@@ -201,11 +211,15 @@ mixin template State(StateStructure) {
     static foreach (property; StateStructure.tupleof) {
         static if (!__traits(hasMember, typeof(this), __traits(identifier, property))) {
             mixin(format!"
-                private typeof(property) _%2$s = __traits(child, StateStructure(), property);
+                typeof(property) _%2$s = __traits(child, StateStructure(), property);
 
                 @StateSetter %1$s typeof(this) %2$s(typeof(property) value) {
                     _%2$s = value;
-                    onStateChange();
+                    static foreach (attribute; __traits(getAttributes, property)) {
+                        static if (is(attribute == Trigger!U, alias U)) {
+                            U();
+                        }
+                    }
                     return this;
                 }
 

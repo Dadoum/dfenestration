@@ -9,9 +9,7 @@ import dfenestration.widgets.window;
 class Null: Widget {
     mixin State;
 
-    override Window window() { return null; }
     override void invalidate() {}
-    override void onStateChange() {}
     override Null parent(ContainerBase) { return this; }
     override ContainerBase parent() { return null; }
     override Null parentData(ContainerData) { return this; }

@@ -41,6 +41,7 @@ abstract class Backend {
 
     this() {
         _eventLoop = new EventLoop();
+
         FTSupport ftStatus = loadFreeType();
         HBSupport hbStatus = loadHarfBuzz();
 
@@ -125,6 +126,12 @@ abstract class Backend {
         openArgs.stream   = null;
         return Face(_freetypeLibrary, openArgs, data);
     }
+
+    final void runInMainThread(void delegate() func) {
+        AsyncNotifier notifier = new AsyncNotifier(_eventLoop);
+        notifier.run(func);
+        notifier.trigger();
+    }
 }
 
 interface BackendWindow {
@@ -135,6 +142,8 @@ interface BackendWindow {
 
     string title();
     void title(string value);
+
+    void cursor(CursorType type);
 
     // Image icon();
     // void icon(Image value);

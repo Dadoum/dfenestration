@@ -325,6 +325,10 @@ class XcbWindow: BackendWindow, VkVGWindow {
         xcbProperty!"_NET_WM_NAME" = value;
     }
 
+    void cursor(CursorType value) {
+        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+    }
+
     Point position() {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
         return typeof(return).init;

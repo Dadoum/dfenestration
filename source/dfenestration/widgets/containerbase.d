@@ -90,7 +90,7 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
 
     Widget hoveredWidget = null;
     override bool onHoverStart(Point location) {
-        bool val = super.onHoverStart(location);
+        // bool val = super.onHoverStart(location);
         foreach_reverse (allocation; allocations) {
             auto widget = allocation[0];
             auto rectangle = allocation[1];
@@ -105,7 +105,7 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
             }
         }
 
-        return val;
+        return false;
     }
 
     override bool onHover(Point location) {
@@ -259,6 +259,19 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
      + Apparent children to the container.
      +/
     abstract Widget[] children();
+
+    bool sizeAllocationScheduled = false;
+    final void scheduleSizeAllocation() {
+        if (!sizeAllocationScheduled) {
+            if (auto window = window()) {
+                sizeAllocationScheduled = true;
+                window.runInMainThread({
+                    onSizeAllocate();
+                    sizeAllocationScheduled = false;
+                });
+            }
+        }
+    }
 }
 
 class ContainerData {
@@ -303,3 +316,5 @@ template DataFor(ContainerT: ContainerBase) {
     import std.traits: InterfacesTuple;
     alias DataFor = ContainerDataAmong!(InterfacesTuple!ContainerT);
 }
+
+alias TriggerSizeAllocation = Trigger!(ContainerBase.onSizeAllocate);

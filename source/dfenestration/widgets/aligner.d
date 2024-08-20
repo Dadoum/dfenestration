@@ -1,12 +1,13 @@
 module dfenestration.widgets.aligner;
 
 import dfenestration.widgets.bin;
+import dfenestration.widgets.containerbase;
 import dfenestration.widgets.widget;
 
 class Aligner: Bin {
     struct _ {
-        Alignment horizontalAlignment = Alignment.center;
-        Alignment verticalAlignment = Alignment.center;
+        @TriggerSizeAllocation Alignment horizontalAlignment = Alignment.center;
+        @TriggerSizeAllocation Alignment verticalAlignment = Alignment.center;
     }
     mixin State!_;
 

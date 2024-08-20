@@ -57,8 +57,7 @@ class WindowFrame: Bin {
     @StateSetter
     override WindowFrame content(Widget w) {
         contentBin.content = w;
-        onStateChange();
-        onSizeAllocate();
+        scheduleWindowSizeAllocation();
         return this;
     }
 

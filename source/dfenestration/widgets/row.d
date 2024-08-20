@@ -12,7 +12,7 @@ import std.logger;
  +/
 class Row: Container!(Widget[]), UsesData!RowData {
     struct _ {
-        uint spacing = 0;
+        @TriggerWindowSizeAllocation uint spacing = 0;
     }
     mixin State!_;
 

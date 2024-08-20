@@ -6,6 +6,8 @@ public import dfenestration.primitives;
 import std.algorithm.comparison;
 import std.logger;
 
+import libasync;
+
 import dfenestration.backends.backend;
 
 import dfenestration.renderers.context;
@@ -64,6 +66,7 @@ class Window: Container!Widget {
     this(Backend backend) {
         frame = new WindowFrame();
         this.backend = backend;
+        this._window = this;
         backendWindow = backend.createBackendWindow(this);
 
         // default fields
@@ -148,10 +151,6 @@ class Window: Container!Widget {
         super.draw(context, rectangle);
     }
 
-    override Window window() {
-        return this;
-    }
-
     override void invalidate() {
         invalidate(allocation);
     }
@@ -175,6 +174,10 @@ class Window: Container!Widget {
     }
 
     Window role(Role role) { backendWindow.role(role); return this; }
+
+    void setCursor(CursorType cursor) {
+        backendWindow.cursor(cursor);
+    }
 
     /++
      + Window title.
@@ -204,7 +207,7 @@ class Window: Container!Widget {
     @StateSetter Window size(Size value) { backendWindow.size(value); return this; }
     void onResize(Size size) {
         allocation = Rectangle(Point.zero, size);
-        onSizeAllocate();
+        scheduleSizeAllocation();
     }
 
     Size layoutSize;
@@ -305,6 +308,10 @@ class Window: Container!Widget {
      + Request window to be resized from a given edge. May be ignored.
      +/
     void resizeDrag(ResizeEdge edge) { backendWindow.resizeDrag(edge); }
+
+    void runInMainThread(void delegate() func) {
+        backend.runInMainThread(func);
+    }
 }
 
 enum ResizeEdge: byte {

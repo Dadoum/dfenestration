@@ -11,13 +11,13 @@ abstract class Button: Container!Widget {
     mixin Control;
 
     private struct _ {
-        uint spacing = 4;
+        @TriggerWindowSizeAllocation uint spacing = 4;
     }
 
     mixin State!_;
 
     this() {
-
+        cursor = CursorType.progress;
     }
 
     override void preferredSize(

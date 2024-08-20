@@ -10,8 +10,8 @@ import dfenestration.widgets.widget;
  +/
 class Test: Widget {
     struct _ {
-        Size size;
-        Size naturalSize;
+        @TriggerWindowSizeAllocation Size size;
+        @TriggerWindowSizeAllocation Size naturalSize;
     }
 
     mixin State!_;
