@@ -412,8 +412,8 @@ version (Wayland):
             }
 
             // TODO use dbus to get cursor scale and theme.
-            string xCursorTheme = environment.get(rendererEnvironmentVariable, null);
-            int xCursorScale = to!int(environment.get(rendererEnvironmentVariable, "-1"));
+            string xCursorTheme = environment.get("XCURSOR_THEME", null);
+            int xCursorScale = to!int(environment.get("XCURSOR_SIZE", "-1"));
 
             cursorThemeManager.setTheme(
                 WlCursorTheme.load(
@@ -422,6 +422,7 @@ version (Wayland):
                     backend.wlObject!WlShm
                 )
             );
+            invalidate();
         }
 
         ~this() {
@@ -1165,8 +1166,8 @@ version (Wayland):
         }
         void scaling(double value) {
             _scaling = value;
-            resetCursorThemeManager();
             configureSize();
+            resetCursorThemeManager();
         }
 
         void close() {
