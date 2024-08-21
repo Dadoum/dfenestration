@@ -25,4 +25,8 @@ class Bin: Container!Widget {
     ) {
         _content.preferredSize(minimumWidth, naturalWidth, minimumHeight, naturalHeight);
     }
+
+    override uint baselineHeight() {
+        return _content.baselineHeight();
+    }
 }

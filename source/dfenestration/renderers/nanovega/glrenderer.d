@@ -27,26 +27,29 @@ version (NanoVega) {
             nanoVegaBackend.loadGL();
         }
 
-        static bool compatible() {
+        static bool compatible(NanoVegaGLRendererCompatible backend) {
             // the library can be loaded.
-            return loadOpenGL() >= GLSupport.noContext;
+            return backend.loadGLLibrary() && loadOpenGL() >= GLSupport.noContext;
         }
 
         override void draw(BackendWindow backendWindow) {
             scope window = cast(NanoVegaGLWindow) backendWindow;
             assert(window !is null);
 
-            if (!window.setAsCurrentContextGL()) {
-                return;
+            synchronized {
+                if (!window.setAsCurrentContextGL()) {
+                    return;
+                }
+
+                glViewport(0, 0, window.canvasSize().tupleof);
+
+                glClearColor(0, 0, 0, 0);
+                glClear(glNVGClearFlags);
+
+                super.draw(backendWindow);
+
+                window.swapBuffersGL();
             }
-
-            glViewport(0, 0, window.canvasSize().tupleof);
-
-            glClearColor(0, 0, 0, 0);
-            glClear(glNVGClearFlags);
-
-            super.draw(backendWindow);
-            window.swapBuffersGL();
         }
 
         override void initializeWindow(BackendWindow backendWindow) {
@@ -80,6 +83,7 @@ version (NanoVega) {
     }
 
     interface NanoVegaGLRendererCompatible: BackendCompatibleWith!NanoVegaGLRenderer {
+        bool loadGLLibrary();
         void loadGL();
         NanoVegaGLWindow createBackendWindow(Window w);
     }
@@ -90,6 +94,29 @@ version (NanoVega) {
         void swapBuffersGL();
         bool setAsCurrentContextGL();
         void cleanupGL();
+    }
+
+    extern(C) void nvgDebugLog(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* messagePtr, GLvoid* userdata) nothrow {
+        string message = cast(string) messagePtr[0..length];
+        try {
+            switch (severity) {
+                case GL_DEBUG_SEVERITY_HIGH:
+                    error(message);
+                    break;
+                case GL_DEBUG_SEVERITY_MEDIUM:
+                    warning(message);
+                    break;
+                case GL_DEBUG_SEVERITY_NOTIFICATION:
+                    info(message);
+                    break;
+                case GL_DEBUG_SEVERITY_LOW:
+                    default:
+                    trace(message);
+                    break;
+            }
+        } catch (Exception) {
+            // TODO catch that
+        }
     }
 } else {
     alias NanoVegaGLRenderer = AliasSeq!();

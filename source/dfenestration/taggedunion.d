@@ -89,7 +89,7 @@ struct TaggedUnion(Value) {
             mixin(
                 format!q{
 					pragma(inline, true)
-					static typeof(this) %1$s(typeof(Value.%1$s) value) {
+					static typeof(this) %1$s(lazy typeof(Value.%1$s) value) {
 						Value v = { %1$s: value };
 						return typeof(this)(Tag.%1$s, v);
 					}

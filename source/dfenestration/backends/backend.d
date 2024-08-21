@@ -81,7 +81,7 @@ abstract class Backend {
 
             static foreach_reverse (Type; InterfacesTuple!R) {{
                 static if (is(Type: BackendCompatibleWith!RendererT, RendererT)) {
-                    if (RendererT.compatible()) {
+                    if (RendererT.compatible(cast(R) this)) {
                         enum RendererIdentifier[] attributes = [getUDAs!(RendererT, RendererIdentifier)];
                         if (attributes.length > 0 && attributes.any!((id) => id.identifier == rendererOverride)) {
                             return new RendererT(this);
@@ -91,14 +91,15 @@ abstract class Backend {
                 }
             }}
 
+            warning(rendererOverride, " is not available, or is not compatible with the ", R.stringof, " backend.");
+
             if (buildRenderer !is null) {
-                warning(rendererOverride, " is not available, or is not compatible with the ", R.stringof, " backend.");
                 return buildRenderer();
             }
         } else {
             static foreach_reverse (Type; InterfacesTuple!R) {{
                 static if (is(Type: BackendCompatibleWith!RendererT, RendererT)) {
-                    if (RendererT.compatible()) {
+                    if (RendererT.compatible(cast(R) this)) {
                         return new RendererT(this);
                     }
                 }
@@ -123,13 +124,16 @@ abstract class Backend {
         openArgs.flags = FT_OPEN_MEMORY;
         openArgs.memory_base = data.ptr;
         openArgs.memory_size = data.length;
-        openArgs.stream   = null;
+        openArgs.stream = null;
         return Face(_freetypeLibrary, openArgs, data);
     }
 
     final void runInMainThread(void delegate() func) {
         AsyncNotifier notifier = new AsyncNotifier(_eventLoop);
-        notifier.run(func);
+        notifier.run({
+            func();
+            notifier.kill();
+        });
         notifier.trigger();
     }
 }

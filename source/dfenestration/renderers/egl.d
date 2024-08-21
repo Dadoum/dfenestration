@@ -2,7 +2,75 @@ module dfenestration.renderers.egl;
 
 version (Have_bindbc_gles):
 
-import bindbc.gles.egl;
+public import bindbc.gles.egl;
+
+// HACK: use of a string in the mixin
+mixin template DefaultEGLBackend() {
+    import bindbc.gles.egl;
+
+    import dfenestration.renderers.egl;
+
+    EGLDisplay eglDisplay;
+    EGLConfig eglConfig;
+
+    EGLContext eglContext;
+
+    static assert(is(typeof(getPlatformDisplay)), "Implement `EGLDisplay getPlatformDisplay()`.");
+
+    void loadGL() {
+        loadEGL();
+        eglDisplay = enforce(getPlatformDisplay());
+
+        EGLint major, minor;
+        enforce(eglInitialize(eglDisplay, &major, &minor) == EGL_TRUE);
+        checkError();
+        trace("EGL ", major, ".", minor, " has been loaded");
+
+        enforce(eglBindAPI(EGL_OPENGL_API) == EGL_TRUE);
+        checkError();
+
+        int[] attributes = [
+            EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+            EGL_CONFORMANT,        EGL_OPENGL_BIT,
+            EGL_RENDERABLE_TYPE,   EGL_OPENGL_BIT,
+            EGL_COLOR_BUFFER_TYPE, EGL_RGB_BUFFER,
+
+            EGL_RED_SIZE, 8,
+            EGL_GREEN_SIZE, 8,
+            EGL_BLUE_SIZE, 8,
+            EGL_ALPHA_SIZE, 8,
+            EGL_BUFFER_SIZE, 32,
+            EGL_NONE
+        ];
+
+        EGLint numConfig;
+        enforce(eglChooseConfig(eglDisplay, attributes.ptr, &eglConfig, 1, &numConfig) == EGL_TRUE);
+        checkError();
+
+        int[9] ctxAttributes = [
+            EGL_CONTEXT_MAJOR_VERSION_KHR, 3,
+            EGL_CONTEXT_MINOR_VERSION_KHR, 0,
+            EGL_NONE, EGL_NONE,
+            EGL_NONE, EGL_NONE,
+            EGL_NONE
+        ];
+
+        debug {
+            ctxAttributes[4..8] = [
+                EGL_CONTEXT_OPENGL_DEBUG, EGL_TRUE,
+                EGL_CONTEXT_FLAGS_KHR, EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR,
+            ];
+        }
+
+        eglContext = enforce(eglCreateContext (eglDisplay, eglConfig, EGL_NO_CONTEXT, ctxAttributes.ptr));
+        checkError();
+    }
+}
+
+enum EGL_PLATFORM_XCB_EXT = 0x31DC;
+enum EGL_PLATFORM_XCB_SCREEN_EXT = 0x31DE;
+
+enum EGL_PLATFORM_WAYLAND_EXT = 0x31D8;
 
 /* Out-of-band handle values */
 enum EGLNativeDisplayType EGL_DEFAULT_DISPLAY = cast(EGLNativeDisplayType)0;
@@ -11,6 +79,11 @@ enum EGLSync EGL_NO_SYNC       = null;
 
 /* Out-of-band attribute value */
 enum EGLint EGL_DONT_CARE = -1;
+
+enum EGL_CONTEXT_MAJOR_VERSION_KHR = 0x3098;
+enum EGL_CONTEXT_MINOR_VERSION_KHR = 0x30FB;
+enum EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR = 0x00000001;
+enum EGL_CONTEXT_FLAGS_KHR = 0x30FC;
 
 enum : EGLint {
     /* Errors / GetError return values */
@@ -219,3 +292,31 @@ enum : EGLint {
 }
 
 static const EGLTime EGL_FOREVER = 0xFFFFFFFFFFFFFFFFUL;
+
+enum EGLError: uint {
+    success = 0x3000,
+    notInitialized = 0x3001,
+    badAccess = 0x3002,
+    badAlloc = 0x3003,
+    badAttribute = 0x3004,
+    badConfig = 0x3005,
+    badContext = 0x3006,
+    badCurrentSurface = 0x3007,
+    badDisplay = 0x3008,
+    badMatch = 0x3009,
+    badNativePixmap = 0x300A,
+    badNativeWindow = 0x300B,
+    badParameter = 0x300C,
+    badSurface = 0x300D,
+    contextLost = 0x300E,
+}
+
+void checkError(string file = __FILE__, size_t line = __LINE__, string func = __FUNCTION__) {
+    alias eglGetError_t = extern(C) EGLError function();
+    auto errorCode = (cast(eglGetError_t) eglGetError)();
+    if (errorCode != EGLError.success) {
+        import std.logger;
+        // TODO throw something if it's severe.
+        error(file, ":", line, " ", func, ": Error code ", errorCode);
+    }
+}

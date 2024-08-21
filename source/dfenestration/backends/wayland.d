@@ -15,8 +15,11 @@ version (Wayland):
     import wayland.native.client: wl_proxy_get_user_data, wl_proxy_set_user_data;
 
     import wayland.client;
+    import wayland.cursor;
     import wayland.egl;
     import wayland.native.util;
+
+    import derelict.util.exception;
 
     import cursorshape;
     import fractionalscale;
@@ -36,11 +39,12 @@ version (Wayland):
     import dfenestration.renderers.renderer;
     import dfenestration.widgets.window;
 
-    class WaylandBackend: Backend, VkVGRendererCompatible, NanoVegaGLRendererCompatible {
+    final class WaylandBackend: Backend, VkVGRendererCompatible, NanoVegaGLRendererCompatible {
         alias RequiredProtocols = AliasSeq!(WlCompositor, WlOutput, WlSeat, WlSubcompositor, XdgWmBase);
         alias SupportedProtocols = AliasSeq!(RequiredProtocols,
+            WlShm,
             OrgKdeKwinServerDecorationManager,
-            WpCursorShapeManagerV1,
+            // WpCursorShapeManagerV1,
             WpFractionalScaleManagerV1,
             XdgActivationV1,
             ZxdgDecorationManagerV1
@@ -68,12 +72,19 @@ version (Wayland):
 
         alias fractionalScaleManager = wlObject!WpFractionalScaleManagerV1;
 
-        WlPointer pointer;
         WpCursorShapeDeviceV1 pointerShape;
 
-        WlKeyboard keyboard;
+        /+ nullable +/ WlPointer pointer;
+        /+ nullable +/ WlKeyboard keyboard;
+        /+ nullable +/ WlTouch touch;
 
-        WlTouch touch;
+        union _CursorShapeBackend {
+            WpCursorShapeManagerV1 cursorShapeManager;
+            None cursorThemeManager;
+            None none;
+        }
+        alias CursorShapeBackend = TaggedUnion!_CursorShapeBackend;
+        CursorShapeBackend cursorShapeBackend;
 
         WaylandWindow currentWindow = null;
         uint currentSerial = 0;
@@ -99,7 +110,6 @@ version (Wayland):
             registry.onGlobalRemove = null; // (WlRegistry, uint) {};
 
             display.dispatch();
-            display.roundtrip();
 
             // We don't want to register anything anymore.
             registry.onGlobal = null;
@@ -115,100 +125,155 @@ version (Wayland):
             };
 
             renderer = this.buildRenderer();
-            pointer = seat.getPointer();
-            keyboard = seat.getKeyboard();
-            touch = seat.getTouch();
 
-            if (wlObject!WpCursorShapeManagerV1) {
-                pointerShape = wlObject!WpCursorShapeManagerV1.getPointer(pointer);
+            if (auto cursorShapeManager = wlObject!WpCursorShapeManagerV1) {
+                cursorShapeBackend = CursorShapeBackend.cursorShapeManager(cursorShapeManager);
             } else {
-                warning("Cannot use cursor-shape on this Wayland compositor. Expect cursor bugs!");
+                try {
+                    wlCursorDynLib.load();
+                    if (auto shm = wlObject!WlShm) {
+                        warning("Cannot use cursor-shape on this Wayland compositor. Coping with that garbage compositor.");
+                        cursorShapeBackend = CursorShapeBackend.cursorThemeManager;
+                    } else {
+                        warning("Cannot use neither cursor-shape nor wl-shm on this Wayland compositor. Guessing no cursor is desired.");
+                        cursorShapeBackend = CursorShapeBackend.none;
+                    }
+                } catch (SharedLibLoadException) {
+                    warning("Cannot use cursor-shape on this Wayland compositor nor load libwayland-cursor. Cursor is going to be ugly!");
+                    cursorShapeBackend = CursorShapeBackend.none;
+                }
             }
 
-            pointer.onEnter = (pointer, serial, surface, x, y) {
-                currentSerial = serial;
-                enterSerial = serial;
-                currentWindow = cast(WaylandWindow) wl_proxy_get_user_data(surface.proxy());
-                currentWindow.onHoverStart(Point(cast(int) x, cast(int) y));
-            };
+            seat.onCapabilities((seat, capabilities) {
+                alias Capabilities = WlSeat.Capability;
 
-            pointer.onLeave = (pointer, serial, surface) {
-                currentSerial = serial;
-                auto win = cast(WaylandWindow) wl_proxy_get_user_data(surface.proxy());
-                assert(win == currentWindow, "Left a surface that wasn't hovered.");
-                currentWindow = null;
-                win.onHoverEnd();
-            };
+                if (capabilities & Capabilities.pointer) {
+                    if (!pointer) {
+                        pointer = seat.getPointer();
 
-            pointer.onMotion = (pointer, time, x, y) {
-                currentWindow.onHover(Point(cast(int) x, cast(int) y));
-            };
+                        if (auto cursorShapeManager = cursorShapeBackend.cursorShapeManager) {
+                            pointerShape = cursorShapeManager.getPointer(pointer);
+                        }
 
-            pointer.onButton = (pointer, serial, time, button, state) {
-                currentSerial = serial;
-                MouseButton mouseButton = void;
-                switch (cast(WaylandMouseButton) button) {
-                    case WaylandMouseButton.left:
-                        mouseButton = MouseButton.left;
-                        break;
-                    case WaylandMouseButton.right:
-                        mouseButton = MouseButton.right;
-                        break;
-                    case WaylandMouseButton.middle:
-                        mouseButton = MouseButton.middle;
-                        break;
-                    case WaylandMouseButton.forward:
-                        mouseButton = MouseButton.forward;
-                        break;
-                    case WaylandMouseButton.back:
-                        mouseButton = MouseButton.back;
-                        break;
-                    default:
-                        mouseButton = MouseButton.unknown;
-                        break;
+                        pointer.onEnter = (pointer, serial, surface, x, y) {
+                            currentSerial = serial;
+                            enterSerial = serial;
+                            currentWindow = cast(WaylandWindow) wl_proxy_get_user_data(surface.proxy());
+                            currentWindow.onHoverStart(Point(cast(int) x, cast(int) y));
+                        };
+
+                        pointer.onLeave = (pointer, serial, surface) {
+                            currentSerial = serial;
+                            auto win = cast(WaylandWindow) wl_proxy_get_user_data(surface.proxy());
+                            assert(win == currentWindow, "Left a surface that wasn't hovered.");
+                            currentWindow = null;
+                            win.onHoverEnd();
+                        };
+
+                        pointer.onMotion = (pointer, time, x, y) {
+                            currentWindow.onHover(Point(cast(int) x, cast(int) y));
+                        };
+
+                        pointer.onButton = (pointer, serial, time, button, state) {
+                            currentSerial = serial;
+                            MouseButton mouseButton = void;
+                            switch (cast(WaylandMouseButton) button) {
+                                case WaylandMouseButton.left:
+                                    mouseButton = MouseButton.left;
+                                    break;
+                                case WaylandMouseButton.right:
+                                    mouseButton = MouseButton.right;
+                                    break;
+                                case WaylandMouseButton.middle:
+                                    mouseButton = MouseButton.middle;
+                                    break;
+                                case WaylandMouseButton.forward:
+                                    mouseButton = MouseButton.forward;
+                                    break;
+                                case WaylandMouseButton.back:
+                                    mouseButton = MouseButton.back;
+                                    break;
+                                    default:
+                                    mouseButton = MouseButton.unknown;
+                                    break;
+                            }
+
+                            final switch (state) with (WlPointer.ButtonState) {
+                                case pressed:
+                                    currentWindow.onClickStart(mouseButton);
+                                    break;
+                                case released:
+                                    currentWindow.onClickEnd(mouseButton);
+                                    break;
+                            }
+                        };
+                    }
+                } else {
+                    if (pointer) {
+                        if (pointerShape) {
+                            pointerShape.destroy();
+                            pointerShape = null;
+                        }
+
+                        pointer.destroy();
+                        pointer = null;
+                    }
                 }
 
-                final switch (state) with (WlPointer.ButtonState) {
-                    case pressed:
-                        currentWindow.onClickStart(mouseButton);
-                        break;
-                    case released:
-                        currentWindow.onClickEnd(mouseButton);
-                        break;
+                if (capabilities & Capabilities.keyboard) {
+                    if (!keyboard) {
+                        keyboard = seat.getKeyboard();
+                    }
+                } else {
+                    if (keyboard) {
+                        keyboard.destroy();
+                        keyboard = null;
+                    }
                 }
-            };
 
-            touch.onUp = (touch, serial, time, id) {
-                currentSerial = serial;
-                touchStatus = TouchStatus.end;
-            };
+                if (capabilities & Capabilities.touch) {
+                    if (!touch) {
+                        touch = seat.getTouch();
 
-            touch.onDown = (touch, serial, time, surface, id, x, y) {
-                currentSerial = serial;
-                touchWindow = cast(WaylandWindow) wl_proxy_get_user_data(surface.proxy());
-                touchStatus = TouchStatus.start;
-                touchLocation = Point(cast(int) x, cast(int) y);
-            };
+                        touch.onUp = (touch, serial, time, id) {
+                            currentSerial = serial;
+                            touchStatus = TouchStatus.end;
+                        };
 
-            touch.onMotion = (touch, time, id, x, y) {
-                touchStatus = TouchStatus.move;
-                touchLocation = Point(cast(int) x, cast(int) y);
-            };
+                        touch.onDown = (touch, serial, time, surface, id, x, y) {
+                            currentSerial = serial;
+                            touchWindow = cast(WaylandWindow) wl_proxy_get_user_data(surface.proxy());
+                            touchStatus = TouchStatus.start;
+                            touchLocation = Point(cast(int) x, cast(int) y);
+                        };
 
-            touch.onFrame = (touch) {
-                enforce(touchWindow !is null);
-                final switch (touchStatus) with (TouchStatus) {
-                    case start:
-                        touchWindow.onTouchStart(touchLocation);
-                        break;
-                    case move:
-                        touchWindow.onTouchMove(touchLocation);
-                        break;
-                    case end:
-                        touchWindow.onTouchEnd(touchLocation);
-                        break;
+                        touch.onMotion = (touch, time, id, x, y) {
+                            touchStatus = TouchStatus.move;
+                            touchLocation = Point(cast(int) x, cast(int) y);
+                        };
+
+                        touch.onFrame = (touch) {
+                            enforce(touchWindow !is null);
+                            final switch (touchStatus) with (TouchStatus) {
+                                case start:
+                                    touchWindow.onTouchStart(touchLocation);
+                                    break;
+                                case move:
+                                    touchWindow.onTouchMove(touchLocation);
+                                    break;
+                                case end:
+                                    touchWindow.onTouchEnd(touchLocation);
+                                    break;
+                            }
+                        };
+                    }
+                } else {
+                    if (touch) {
+                        touch.destroy();
+                        touch = null;
+                    }
                 }
-            };
+            });
 
             AsyncEvent event = new AsyncEvent(super._eventLoop, display.getFd());
             event.run((code) {
@@ -240,40 +305,22 @@ version (Wayland):
         }
 
         version (NanoVega) {
-            import bindbc.gles.egl;
-
             import dfenestration.renderers.egl;
+            mixin DefaultEGLBackend;
 
-            EGLDisplay eglDisplay;
-            EGLConfig eglConfig;
+            final EGLDisplay getPlatformDisplay() => eglGetPlatformDisplay(
+                EGL_PLATFORM_WAYLAND_EXT,
+                cast(void*) display.proxy,
+                null
+            );
 
-            void loadGL() {
-                loadEGL();
-                eglDisplay = enforce(eglGetDisplay(cast(void*) display.proxy));
-
-                EGLint major, minor;
-                enforce(eglInitialize(eglDisplay, &major, &minor) == EGL_TRUE);
-                trace("EGL ", major, ".", minor, " has been loaded");
-
-                enforce(eglBindAPI(EGL_OPENGL_API) == EGL_TRUE);
-
-                int[] ctxAttribs = [
-                    EGL_CONTEXT_CLIENT_VERSION, 2,
-                    EGL_NONE
-                ];
-                int[] attributes = [
-                    EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-                    EGL_RED_SIZE, 8,
-                    EGL_GREEN_SIZE, 8,
-                    EGL_BLUE_SIZE, 8,
-                    EGL_ALPHA_SIZE, 8,
-                    EGL_BUFFER_SIZE, 32,
-                    EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-                    EGL_NONE
-                ];
-
-                EGLint numConfig;
-                enforce(eglChooseConfig(eglDisplay, attributes.ptr, &eglConfig, 1, &numConfig) == EGL_TRUE);
+            bool loadGLLibrary() {
+                try {
+                    wlEglDynLib.load();
+                    return true;
+                } catch (SharedLibLoadException e) {
+                    return false;
+                }
             }
         }
 
@@ -319,7 +366,7 @@ version (Wayland):
         task = 0x117,
     }
 
-    class WaylandWindow: BackendWindow, NanoVegaGLWindow, VkVGWindow {
+    final class WaylandWindow: BackendWindow, NanoVegaGLWindow, VkVGWindow {
         WaylandBackend backend;
         Renderer renderer;
         Window window;
@@ -345,10 +392,33 @@ version (Wayland):
         WaylandDecoration decoration = WaylandDecoration.none;
         WpFractionalScaleV1 fractionalScale;
 
+        WaylandCursorThemeManager cursorThemeManager;
+
         this(WaylandBackend backend, Window window) {
             this.backend = backend;
             this.window = window;
             this.renderer = backend.renderer;
+
+            if (backend.cursorShapeBackend == WaylandBackend.CursorShapeBackend.cursorThemeManager) {
+                resetCursorThemeManager();
+            }
+        }
+
+        final void resetCursorThemeManager() {
+            destroy(cursorThemeManager);
+            // TODO use dbus to get cursor scale and theme.
+            string xCursorTheme = environment.get(rendererEnvironmentVariable, null);
+            import std.conv;
+            int xCursorScale = to!int(environment.get(rendererEnvironmentVariable, "-1"));
+
+            cursorThemeManager = WaylandCursorThemeManager(
+                backend,
+                WlCursorTheme.load(
+                    xCursorTheme,
+                    xCursorScale > 0 ? xCursorScale : cast(uint) (24 * scaling),
+                    backend.wlObject!WlShm
+                )
+            );
         }
 
         ~this() {
@@ -413,6 +483,10 @@ version (Wayland):
             }
 
             renderer.initializeWindow(this);
+            reconfigure();
+
+            renderer.draw(this);
+
             backend.display.roundtrip();
 
             if (auto toplevel = xdgWindow.toplevel) {
@@ -420,9 +494,6 @@ version (Wayland):
             } // else if (auto popup = xdgWindow.popup) {
             //     // popup.onConfigure = (pop)
             // }
-
-            reconfigure();
-            renderer.draw(this);
         }
 
         void reconfigure() {
@@ -447,6 +518,7 @@ version (Wayland):
         void onToplevelConfigure(XdgToplevel tl, int width, int height, wl_array* statesC) {
             assert(shown, "Window is not shown but it got configured.");
             scope newSize = Size(cast(uint) width, cast(uint) height).unscale(scaling);
+
             if (newSize != size) {
                 size = newSize;
             }
@@ -813,6 +885,8 @@ version (Wayland):
                         break;
                 }
                 backend.pointerShape.setShape(backend.enterSerial, cursorShape);
+            } else if (backend.cursorShapeBackend == WaylandBackend.CursorShapeBackend.cursorThemeManager) {
+                cursorThemeManager.setCursor(backend.pointer, backend.enterSerial, type);
             }
         }
 
@@ -1088,6 +1162,7 @@ version (Wayland):
         }
         void scaling(double value) {
             _scaling = value;
+            resetCursorThemeManager();
             configureSize();
         }
 
@@ -1156,7 +1231,6 @@ version (Wayland):
             import dfenestration.renderers.egl;
             import arsd.nanovega;
 
-            EGLContext eglContext;
             EGLSurface eglSurface;
 
             WlEglWindow eglWindow;
@@ -1168,15 +1242,20 @@ version (Wayland):
             }
 
             void createWindowGL(uint width, uint height) {
-                int[] ctxAttribs = [
-                    EGL_CONTEXT_CLIENT_VERSION, 2,
-                    EGL_NONE
-                ];
+                assert(surface !is null);
+                assert(backend.eglDisplay !is null);
+                assert(backend.eglConfig !is null);
 
-                eglContext = enforce(eglCreateContext (backend.eglDisplay, backend.eglConfig, EGL_NO_CONTEXT, ctxAttribs.ptr));
                 eglWindow = new WlEglWindow(surface, width, height);
+                checkError();
 
-                eglSurface = enforce(eglCreateWindowSurface(backend.eglDisplay, backend.eglConfig, cast(ANativeWindow*) eglWindow.native, null));
+                EGLint[5] attributes = [
+                    EGL_GL_COLORSPACE, EGL_GL_COLORSPACE_LINEAR, // or use EGL_GL_COLORSPACE_SRGB for sRGB framebuffer
+                    EGL_RENDER_BUFFER, EGL_BACK_BUFFER,
+                    EGL_NONE,
+                ];
+                eglSurface = enforce(eglCreateWindowSurface(backend.eglDisplay, backend.eglConfig, cast(ANativeWindow*) eglWindow.native, attributes.ptr));
+                checkError();
 
                 synchronized {
                     setAsCurrentContextGL();
@@ -1193,20 +1272,36 @@ version (Wayland):
                     assert(glVersion >= GLSupport.gl30, "Cannot load OpenGL!!");
                     libEGL = typeof(libEGL).init;
                 }
+
+                eglSwapInterval(backend.eglDisplay, 1);
+
+                debug {
+                    import bindbc.opengl;
+                    if (glDebugMessageCallback) {
+                        glDebugMessageCallback(&nvgDebugLog, null);
+                        checkError();
+                        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+                    } else {
+                        warning("Can't output debug messages.");
+                    }
+                }
             }
 
             bool setAsCurrentContextGL() {
-                if (!eglSurface || !eglContext) {
+                if (!eglSurface) {
                     return false;
                 }
-                return eglMakeCurrent(backend.eglDisplay, eglSurface, eglSurface, eglContext) == EGL_TRUE;
+                bool ret = eglMakeCurrent(backend.eglDisplay, eglSurface, eglSurface, backend.eglContext) == EGL_TRUE;
+                checkError();
+                return ret;
             }
 
             void swapBuffersGL() {
                 if (!eglSurface) {
                     return;
                 }
-                eglSwapBuffers(backend.eglDisplay, eglSurface);
+                eglSwapBuffers(backend.eglDisplay, eglSurface).enforce();
+                checkError();
             }
 
             void resizeGL(uint width, uint height) {
@@ -1214,13 +1309,20 @@ version (Wayland):
                     return;
                 }
                 eglWindow.resize(cast(int) ceil(width * scaling), cast(int) ceil(height * scaling), 0, 0);
+                checkError();
             }
 
             void cleanupGL() {
-                if (!eglWindow) {
-                    return;
+                if (eglSurface) {
+                    eglDestroySurface(backend.eglDisplay, eglSurface);
+                    checkError();
+                    eglSurface = EGL_NO_SURFACE;
                 }
-                eglWindow.destroy();
+                if (eglWindow) {
+                    eglWindow.destroy();
+                    checkError();
+                    eglWindow = null;
+                }
             }
         }
 
@@ -1248,7 +1350,12 @@ class WaylandBackendBuilder: BackendBuilder {
 
     ushort evaluate() {
         if (environment.get("XDG_SESSION_TYPE") == "wayland") {
-            return 2;
+            try {
+                wlClientDynLib.load();
+                return 2;
+            } catch (SharedLibLoadException e) {
+                error("Your environment tells us to use Wayland, but libwayland-client isn't installed. Falling back.");
+            }
         }
         return 0;
     }
@@ -1290,5 +1397,129 @@ pragma(inline, true) {
 
     private Size unscale(Size size, double scaling) {
         return Size(cast(uint) (size.width / scaling), cast(uint) (size.height / scaling));
+    }
+}
+
+pragma(inline, true)
+string adwaitaName(CursorType cursorType) {
+    with (CursorType) switch (cursorType) {
+        default:
+        case default_:
+            return "default";
+        case contextMenu:
+            return "context-menu";
+        case help:
+            return "help";
+        case pointer:
+            return "pointer";
+        case progress:
+            return "progress";
+        case wait:
+            return "wait";
+        case cell:
+            return "cell";
+        case crosshair:
+            return "crosshair";
+        case text:
+            return "text";
+        case verticalText:
+            return "verticalText";
+        case alias_:
+            return "alias";
+        case copy:
+            return "copy";
+        case move:
+            return "move";
+        case noDrop:
+            return "no-drop";
+        case notAllowed:
+            return "not-allowed";
+        case grab:
+            return "grab";
+        case grabbing:
+            return "grabbing";
+        case eResize:
+            return "e-resize";
+        case nResize:
+            return "n-resize";
+        case neResize:
+            return "ne-resize";
+        case nwResize:
+            return "nw-resize";
+        case sResize:
+            return "s-resize";
+        case seResize:
+            return "se-resize";
+        case swResize:
+            return "sw-resize";
+        case wResize:
+            return "w-resize";
+        case ewResize:
+            return "ew-resize";
+        case nsResize:
+            return "ns-resize";
+        case neswResize:
+            return "nesw-resize";
+        case nwseResize:
+            return "nwse-resize";
+        case colResize:
+            return "col-resize";
+        case rowResize:
+            return "row-resize";
+        case allScroll:
+            return "all-scroll";
+        case zoomIn:
+            return "zoom-in";
+        case zoomOut:
+            return "zoom-out";
+    }
+}
+
+struct WaylandCursorThemeManager {
+    WlCursorTheme cursorTheme;
+    WlCursor[CursorType] cursors;
+
+    WlSurface cursorSurface;
+
+    this(WaylandBackend backend, WlCursorTheme cursorTheme) {
+        this.cursorTheme = cursorTheme;
+
+        static foreach (cursorTypeName; __traits(allMembers, CursorType)) {{
+            enum cursorType = __traits(getMember, CursorType, cursorTypeName);
+            if (auto cursor = cursorTheme.cursor(cursorType.adwaitaName)) {
+                cursors[cursorType] = cursor;
+            }
+        }}
+
+        cursorSurface = backend.compositor.createSurface();
+    }
+
+    @disable this(this);
+
+    ~this() {
+        if (cursorSurface) {
+            cursorSurface.destroy();
+        }
+        foreach (cursor; cursors) {
+            if (cursor) {
+                cursor.destroy();
+            }
+        }
+        if (cursorTheme) {
+            cursorTheme.destroy();
+        }
+    }
+
+    void setCursor(WlPointer pointer, uint serial, CursorType cursorType) {
+        if (auto cursor = cursorType in cursors) {
+            auto image = cursor.images[0];
+            if (!image) return;
+            auto buffer = image.buffer;
+            if (!buffer) return;
+            pointer.setCursor(serial, cursorSurface, image.hotspotX, image.hotspotY);
+            cursorSurface.attach(buffer, 0, 0);
+            cursorSurface.damage(0, 0, image.width, image.height);
+            cursorSurface.commit();
+        }
     }
 }

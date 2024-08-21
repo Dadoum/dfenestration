@@ -3,7 +3,7 @@ description "A minimal D application."
 authors "Dadoum"
 license "proprietary"
 sourcePaths "source"
-dflags "-link-defaultlib-shared=false"
+dflags "-link-defaultlib-shared=false" platform="ldc"
 
 dependency "arsd-official:color_base" repository="git+https://github.com/Dadoum/arsd.git" version="32c2d2c5baf44afd864bac723a231ffc92df8986"
 dependency "bindbc-freetype" version="~>1.2.6"
@@ -14,8 +14,11 @@ versions "FT_2_12"
 
 // Wayland backend (default on Linux)
 dependency "wayland:client" version="~>0.3.1"
+subConfiguration "wayland:client" "dynamic"
+dependency "wayland:cursor" version="~>0.3.1"
+subConfiguration "wayland:cursor" "dynamic"
 dependency "wayland:egl" version="~>0.3.1"
-dependency "bindbc-gles" version="~>0.0.1"
+subConfiguration "wayland:egl" "dynamic"
 sourcePaths "external/wayland-protocols"
 versions "Wayland"
 
@@ -29,6 +32,8 @@ dependency "erupted" repository="git+https://github.com/Dadoum/erupted.git" vers
 sourcePaths "external/vkvg"
 versions "VkVG"
 
+dependency "bindbc-gles" version="~>0.0.1"
+versions "GL_43"
 dependency "arsd-official:nanovega" repository="git+https://github.com/Dadoum/arsd.git" version="32c2d2c5baf44afd864bac723a231ffc92df8986"
 subConfiguration "arsd-official:nanovega" "bindbc"
 sourcePaths "external/nanovega"

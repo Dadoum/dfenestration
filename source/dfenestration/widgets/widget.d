@@ -125,7 +125,7 @@ abstract class Widget {
     }
 
     uint baselineHeight() {
-        return allocation.height;
+        return allocation.height / 2;
     }
 
     /++

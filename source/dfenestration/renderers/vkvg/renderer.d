@@ -239,7 +239,7 @@ version (VkVG) {
             }
         }
 
-        static bool compatible() {
+        static bool compatible(VkVGRendererCompatible backend) {
             import dynamicloader;
             return loadGlobalLevelFunctions() && LibImport.tryLoad!libvkvg();
         }

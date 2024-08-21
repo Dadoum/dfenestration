@@ -96,6 +96,7 @@ because splitting everything from the start is unpractical for development.
 - Resizing from the top left corner with the Vulkan backend is making the window jump 
 the first time.
 - Resizing a vulkan window is a bit laggy (it's a VkVG issue tho).
+- Vulkan + Wayland + Nvidia is buggy.
 
 ## Current support
 
@@ -105,16 +106,16 @@ Wayland with relatively recent protocols.
 
 - Platform support
 
-  |                     | Software | OpenGL | Vulkan | Metal |
-  |---------------------|----------|--------|--------|-------|
-  | Wayland (xdg-shell) |          | OK     | OK     | -     |
-  | X11                 |          |        | wip    | -     |
-  | Windows             |          |        |        | -     |
-  | macOS               |          | maybe  | maybe  |       |
+  |                            | Software | OpenGL    | Vulkan | Metal |
+  |----------------------------|----------|-----------|--------|-------|
+  | Wayland (xdg-shell + DLCs) |          | OK (EGL)  | wip    | -     |
+  | X11 (xcb)                  |          | wip (EGL) | wip    | -     |
+  | Windows                    |          |           |        | -     |
+  | macOS                      |          | maybe     | maybe  |       |
 
 For now, support for other platforms is not planned. I used xdg-shell for Wayland as
-it is now the standard. Don't be surprised if some of the things GTK+ 3 does are working
-differently in dfenestration (it used wl-shell-surface).
+it is now the standard. Don't be surprised if some of the things GTK+ 3 is doing are
+different in dfenestration (GTK+ 3 used wl-shell-surface).
 
 - Accessibility
   - [ ] Access-kit

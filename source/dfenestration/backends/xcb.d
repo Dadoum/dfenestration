@@ -24,8 +24,9 @@ import dfenestration.renderers.context;
 import dfenestration.renderers.renderer;
 import dfenestration.widgets.window;
 
-class XcbBackend: Backend, VkVGRendererCompatible {
+class XcbBackend: Backend, VkVGRendererCompatible, NanoVegaGLRendererCompatible {
     xcb_connection_t* connection;
+    int screenNumber;
     xcb_screen_t* screen;
     xcb_visualid_t visual;
 
@@ -33,7 +34,7 @@ class XcbBackend: Backend, VkVGRendererCompatible {
     XcbWindow[xcb_window_t] xcbWindows;
 
     this() {
-        connection = xcb_connect(null, null);
+        connection = xcb_connect(null, &screenNumber);
         if (connection == null) {
             throw new XcbException("Can't connect to X server!");
         }
@@ -61,8 +62,8 @@ class XcbBackend: Backend, VkVGRendererCompatible {
 
             switch (event.response_type) {
                 case XCB_EXPOSE:
-                    // auto event_expose = cast(xcb_expose_event_t*) event;
-                    // renderer.draw(xcbWindows[event_expose.window]);
+                    auto event_expose = cast(xcb_expose_event_t*) event;
+                    xcbWindows[event_expose.window].scheduleRedraw();
                     break;
                 case XCB_CLIENT_MESSAGE | 1 << 7:
                     auto event_cm = cast(xcb_client_message_event_t*) event;
@@ -119,6 +120,21 @@ class XcbBackend: Backend, VkVGRendererCompatible {
         return xcbWindow;
     }
 
+    version (NanoVega) {
+        import dfenestration.renderers.egl;
+        mixin DefaultEGLBackend;
+
+        final EGLDisplay getPlatformDisplay() => eglGetPlatformDisplay(
+            EGL_PLATFORM_XCB_EXT,
+            cast(void*) connection,
+            [const(long)(EGL_PLATFORM_XCB_SCREEN_EXT), /+ screen +/ const(long)(screenNumber), const(long)(EGL_NONE)].ptr
+        );
+
+        bool loadGLLibrary() {
+            return true;
+        }
+    }
+
     version (VkVG) {
         public import erupted;
 
@@ -145,7 +161,7 @@ version (VkVG) {
     mixin Platform_Extensions!USE_PLATFORM_XCB_KHR vulkanXcb;
 }
 
-class XcbWindow: BackendWindow, VkVGWindow {
+class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
     Window dWindow;
     XcbBackend backend;
 
@@ -171,14 +187,15 @@ class XcbWindow: BackendWindow, VkVGWindow {
             }
         }
 
-        uint[1] values = [
+        uint[2] values = [
+            0,
             XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
             XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
             XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW |
             XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_BUTTON_MOTION |
             XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_VISIBILITY_CHANGE |
             XCB_EVENT_MASK_FOCUS_CHANGE | XCB_EVENT_MASK_KEYMAP_STATE |
-            XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE
+            XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE,
         ];
 
         window = xcb_generate_id(connection);
@@ -188,7 +205,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
             -1, -1, 200, 200, 0,
             XCB_WINDOW_CLASS_INPUT_OUTPUT,
             backend.visual,
-            XCB_CW_EVENT_MASK,
+            XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK,
             values.ptr
         ).xcbEnforce(connection);
 
@@ -276,7 +293,8 @@ class XcbWindow: BackendWindow, VkVGWindow {
         xcb_flush(backend.connection);
     }
 
-    void sendClientMessage(T: U[n], U, size_t n)(xcb_atom_t type, T data, ubyte format = U.sizeof * 8) if (T.sizeof == 20) {
+    pragma(inline, true)
+    final void sendClientMessage(T: U[n], U, size_t n)(xcb_window_t destination, xcb_atom_t type, T data, ubyte format = U.sizeof * 8) if (T.sizeof == 20) {
         xcb_client_message_event_t event = {
             response_type   : XCB_CLIENT_MESSAGE,
             format          : format,
@@ -289,11 +307,15 @@ class XcbWindow: BackendWindow, VkVGWindow {
         xcb_send_event_checked(
             backend.connection,
             false,
-            backend.screen.root,
+            destination,
             XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT,
             cast(const(char*)) &event
         ).xcbEnforce(backend.connection);
     }
+
+    pragma(inline, true)
+    final void sendMessageToRootWindow(T: U[n], U, size_t n)(xcb_atom_t type, T data, ubyte format = U.sizeof * 8) if (T.sizeof == 20)
+        => sendClientMessage!(T, U, n)(backend.screen.root, __traits(parameters));
 
     void paint(Context context) {
         dWindow.paint(context);
@@ -416,7 +438,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
             0,
             0
         ];
-        sendClientMessage(backend.atom!"WM_CHANGE_STATE", event);
+        sendMessageToRootWindow(backend.atom!"WM_CHANGE_STATE", event);
     }
 
     void present() {
@@ -465,7 +487,7 @@ class XcbWindow: BackendWindow, VkVGWindow {
         //     0,
         //     0
         // ];
-        // sendClientMessage(backend.atom!"_NET_WM_MOVERESIZE", event);
+        // sendMessageToRootWindow(backend.atom!"_NET_WM_MOVERESIZE", event);
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
     }
     void resizeDrag(ResizeEdge edge) {
@@ -474,6 +496,89 @@ class XcbWindow: BackendWindow, VkVGWindow {
 
     void showWindowControlMenu(Point location) {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+    }
+
+    bool redrawScheduled = false;
+    final void scheduleRedraw() {
+        if (!redrawScheduled) {
+            redrawScheduled = true;
+            backend.runInMainThread({
+                backend.renderer.draw(this);
+                redrawScheduled = false;
+            });
+        }
+    }
+
+    version (NanoVega) {
+        import bindbc.gles.egl;
+        import bindbc.opengl;
+
+        import dfenestration.renderers.egl;
+        import arsd.nanovega;
+
+        EGLSurface eglSurface;
+
+        NVGContext _nvgContext;
+
+        ref NVGContext nvgContext() {
+            return _nvgContext;
+        }
+
+        void createWindowGL(uint width, uint height) {
+            EGLint[5] attributes = [
+                EGL_GL_COLORSPACE, EGL_GL_COLORSPACE_LINEAR, // or use EGL_GL_COLORSPACE_SRGB for sRGB framebuffer
+                EGL_RENDER_BUFFER, EGL_BACK_BUFFER,
+                EGL_NONE,
+            ];
+            eglSurface = enforce(eglCreateWindowSurface(backend.eglDisplay, backend.eglConfig, cast(ANativeWindow*) window, attributes.ptr));
+
+            synchronized {
+                setAsCurrentContextGL();
+
+                // HACK
+                import bindbc.opengl.context;
+                alias libEGL = __traits(getMember, bindbc.opengl.context, "libEGL");
+                alias getCurrentContext = __traits(getMember, bindbc.opengl.context, "getCurrentContext");
+                alias getProcAddress = __traits(getMember, bindbc.opengl.context, "getProcAddress");
+                libEGL = typeof(libEGL)(cast(void*) 0x1); // fake libEGL as loaded
+                getCurrentContext = eglGetCurrentContext; // give our EGL symbols
+                getProcAddress = eglGetProcAddress;
+                GLSupport glVersion = loadOpenGL();
+                assert(glVersion >= GLSupport.gl30, "Cannot load OpenGL!!");
+                libEGL = typeof(libEGL).init;
+            }
+
+            debug {
+                import bindbc.opengl;
+                if (glDebugMessageCallback) {
+                    glDebugMessageCallback(&nvgDebugLog, null);
+                    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+                } else {
+                    warning("Can't output debug messages.");
+                }
+            }
+
+            // TODO: vsync
+            int vsync = 1;
+            eglSwapInterval(backend.eglDisplay, vsync).enforce();
+        }
+
+        bool setAsCurrentContextGL() {
+            if (!eglSurface) {
+                return false;
+            }
+            return eglMakeCurrent(backend.eglDisplay, eglSurface, eglSurface, backend.eglContext) == EGL_TRUE;
+        }
+
+        void swapBuffersGL() {
+            if (!eglSurface) {
+                return;
+            }
+            eglSwapBuffers(backend.eglDisplay, eglSurface).enforce();
+        }
+
+        void resizeGL(uint width, uint height) {}
+        void cleanupGL() {}
     }
 
     version (VkVG) {

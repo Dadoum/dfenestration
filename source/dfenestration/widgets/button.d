@@ -62,4 +62,8 @@ abstract class Button: Container!Widget {
 
         super.draw(context, rectangle);
     }
+
+    override uint baselineHeight() {
+        return spacing + content.baselineHeight();
+    }
 }
