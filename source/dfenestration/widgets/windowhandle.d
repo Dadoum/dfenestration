@@ -12,7 +12,7 @@ class WindowHandle: Bin {
     bool pressed = false;
 
     this() {
-        cursor = CursorType.grab;
+        // cursor = CursorType.grab;
     }
 
     override bool onHoverStart(Point location) {

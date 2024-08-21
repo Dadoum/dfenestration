@@ -3,6 +3,7 @@ module dfenestration.backends.wayland;
 version (Wayland):
     import std.algorithm.mutation;
     import std.algorithm.searching;
+    import std.conv;
     import std.datetime;
     import std.exception;
     import std.logger;
@@ -44,7 +45,7 @@ version (Wayland):
         alias SupportedProtocols = AliasSeq!(RequiredProtocols,
             WlShm,
             OrgKdeKwinServerDecorationManager,
-            // WpCursorShapeManagerV1,
+            WpCursorShapeManagerV1,
             WpFractionalScaleManagerV1,
             XdgActivationV1,
             ZxdgDecorationManagerV1
@@ -392,7 +393,7 @@ version (Wayland):
         WaylandDecoration decoration = WaylandDecoration.none;
         WpFractionalScaleV1 fractionalScale;
 
-        WaylandCursorThemeManager cursorThemeManager;
+        WaylandCursorThemeManager cursorThemeManager = void;
 
         this(WaylandBackend backend, Window window) {
             this.backend = backend;
@@ -400,19 +401,21 @@ version (Wayland):
             this.renderer = backend.renderer;
 
             if (backend.cursorShapeBackend == WaylandBackend.CursorShapeBackend.cursorThemeManager) {
+                cursorThemeManager = WaylandCursorThemeManager(backend);
                 resetCursorThemeManager();
             }
         }
 
         final void resetCursorThemeManager() {
-            destroy(cursorThemeManager);
+            if (backend.cursorShapeBackend != WaylandBackend.CursorShapeBackend.cursorThemeManager) {
+                return;
+            }
+
             // TODO use dbus to get cursor scale and theme.
             string xCursorTheme = environment.get(rendererEnvironmentVariable, null);
-            import std.conv;
             int xCursorScale = to!int(environment.get(rendererEnvironmentVariable, "-1"));
 
-            cursorThemeManager = WaylandCursorThemeManager(
-                backend,
+            cursorThemeManager.setTheme(
                 WlCursorTheme.load(
                     xCursorTheme,
                     xCursorScale > 0 ? xCursorScale : cast(uint) (24 * scaling),
@@ -1481,8 +1484,21 @@ struct WaylandCursorThemeManager {
 
     WlSurface cursorSurface;
 
-    this(WaylandBackend backend, WlCursorTheme cursorTheme) {
+    this(WaylandBackend backend) {
+        cursorSurface = backend.compositor.createSurface();
+    }
+
+    void setTheme(WlCursorTheme cursorTheme) {
+        if (this.cursorTheme) {
+            this.cursorTheme.destroy();
+        }
         this.cursorTheme = cursorTheme;
+
+        foreach (cursor; cursors) {
+            cursor.destroy();
+        }
+
+        cursors.clear();
 
         static foreach (cursorTypeName; __traits(allMembers, CursorType)) {{
             enum cursorType = __traits(getMember, CursorType, cursorTypeName);
@@ -1490,10 +1506,9 @@ struct WaylandCursorThemeManager {
                 cursors[cursorType] = cursor;
             }
         }}
-
-        cursorSurface = backend.compositor.createSurface();
     }
 
+    @disable this();
     @disable this(this);
 
     ~this() {
@@ -1501,9 +1516,7 @@ struct WaylandCursorThemeManager {
             cursorSurface.destroy();
         }
         foreach (cursor; cursors) {
-            if (cursor) {
-                cursor.destroy();
-            }
+            cursor.destroy();
         }
         if (cursorTheme) {
             cursorTheme.destroy();
