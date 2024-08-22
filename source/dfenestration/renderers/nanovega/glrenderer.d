@@ -63,8 +63,8 @@ version (NanoVega) {
                 NVGContext nvgContext = nvgCreateContext();
                 enforce(nvgContext !is null, "Cannot build NVGContext");
                 window.nvgContext = nvgContext;
+                window.swapBuffersGL();
             }
-            window.swapBuffersGL();
         }
 
         override void cleanup(BackendWindow backendWindow) {

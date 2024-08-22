@@ -108,7 +108,7 @@ final class WpCursorShapeManagerV1 : WlProxy
             pointer.proxy
         );
         if (!_pp) return null;
-        auto _p = WlProxy.get(_pp);
+        auto _p = wl_proxy_get_user_data(_pp);
         if (_p) return cast(WpCursorShapeDeviceV1)_p;
         return new WpCursorShapeDeviceV1(_pp);
     }
@@ -125,7 +125,7 @@ final class WpCursorShapeManagerV1 : WlProxy
     //         null, tabletTool.proxy
     //     );
     //     if (!_pp) return null;
-    //     auto _p = WlProxy.get(_pp);
+    //     auto _p = wl_proxy_get_user_data(_pp);
     //     if (_p) return cast(WpCursorShapeDeviceV1)_p;
     //     return new WpCursorShapeDeviceV1(_pp);
     // }
@@ -134,8 +134,7 @@ final class WpCursorShapeManagerV1 : WlProxy
 /++
  +  cursor shape for a device
  +
- +  This interface advertises the list of supported cursor shapes for a
- +  device, and allows clients to set the cursor shape.
+ +  This interface allows clients to set the cursor shape.
  +/
 final class WpCursorShapeDeviceV1 : WlProxy
 {

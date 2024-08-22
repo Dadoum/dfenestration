@@ -4,7 +4,6 @@ import core.thread;
 
 import std.algorithm;
 import std.conv;
-import std.datetime;
 import std.exception;
 import std.format;
 import std.string;
@@ -31,7 +30,6 @@ abstract class Backend {
     EventLoop _eventLoop;
     FT_Library _freetypeLibrary;
 
-    bool running = false;
     int exitCode = 0;
 
     EventLoop eventLoop() => _eventLoop;
@@ -61,18 +59,14 @@ abstract class Backend {
     }
 
     final int run() {
-        running = true;
-
-        while (running) {
-            eventLoop.loop();
-        }
+        while (eventLoop.loop()) {}
 
         return exitCode;
     }
 
     final void exit(int code = 0) {
-        running = false;
         exitCode = code;
+        _eventLoop.exit();
     }
 
     Renderer buildRenderer(this R)() {

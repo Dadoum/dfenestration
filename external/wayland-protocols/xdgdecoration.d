@@ -4,7 +4,6 @@
  +    generated code: client
  +/
 module xdgdecoration;
-
 /+
  +  Protocol copyright:
  +
@@ -82,7 +81,7 @@ final class ZxdgDecorationManagerV1 : WlProxy
     }
 
     /// Interface object that creates ZxdgDecorationManagerV1 objects.
-    static immutable(WlProxyInterface) iface()
+    static @property immutable(WlProxyInterface) iface()
     {
         return zxdgDecorationManagerV1Iface;
     }
@@ -129,7 +128,7 @@ final class ZxdgDecorationManagerV1 : WlProxy
             ZxdgToplevelDecorationV1.iface.native, null, toplevel.proxy
         );
         if (!_pp) return null;
-        auto _p = WlProxy.get(_pp);
+        auto _p = wl_proxy_get_user_data(_pp);
         if (_p) return cast(ZxdgToplevelDecorationV1)_p;
         return new ZxdgToplevelDecorationV1(_pp);
     }
@@ -154,11 +153,11 @@ final class ZxdgToplevelDecorationV1 : WlProxy
     private this(wl_proxy* native)
     {
         super(native);
-        wl_proxy_add_listener(proxy, cast(void_func_t*)&wl_d_zxdg_toplevel_decoration_v1_listener, null);
+        wl_proxy_add_listener(proxy, cast(void_func_t*)&wl_d_zxdg_toplevel_decoration_v1_listener, cast(void*) this);
     }
 
     /// Interface object that creates ZxdgToplevelDecorationV1 objects.
-    static immutable(WlProxyInterface) iface()
+    static @property immutable(WlProxyInterface) iface()
     {
         return zxdgToplevelDecorationV1Iface;
     }
@@ -266,9 +265,9 @@ final class ZxdgToplevelDecorationV1 : WlProxy
     }
 
     /++
-     +  suggest a surface change
+     +  notify a decoration mode change
      +
-     +  The configure event asks the client to change its decoration mode. The
+     +  The configure event configures the effective decoration mode. The
      +  configured state should not be applied immediately. Clients must send an
      +  ack_configure in response to this event. See xdg_surface.configure and
      +  xdg_surface.ack_configure for details.
@@ -276,7 +275,7 @@ final class ZxdgToplevelDecorationV1 : WlProxy
      +  A configure event can be sent at any time. The specified mode must be
      +  obeyed by the client.
      +/
-    void onConfigure(OnConfigureEventDg dg)
+    @property void onConfigure(OnConfigureEventDg dg)
     {
         _onConfigure = dg;
     }
@@ -376,8 +375,8 @@ extern(C) nothrow
                                                        uint mode)
     {
         nothrowFnWrapper!({
-            auto _p = WlProxy.get(proxy);
-            assert(_p, "listener stub without proxy");
+            auto _p = data;
+            assert(_p, "listener stub without the right userdata");
             auto _i = cast(ZxdgToplevelDecorationV1)_p;
             assert(_i, "listener stub proxy is not ZxdgToplevelDecorationV1");
             if (_i._onConfigure)

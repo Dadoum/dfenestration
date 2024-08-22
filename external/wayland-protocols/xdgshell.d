@@ -4,7 +4,6 @@
  +    generated code: client
  +/
 module xdgshell;
-
 /+
  +  Protocol copyright:
  +
@@ -59,17 +58,17 @@ import std.string : fromStringz, toStringz;
 final class XdgWmBase : WlProxy
 {
     /// Version of xdg_shell.xdg_wm_base
-    enum ver = 4;
+    enum ver = 6;
 
     /// Build a XdgWmBase from a native object.
     private this(wl_proxy* native)
     {
         super(native);
-        wl_proxy_add_listener(proxy, cast(void_func_t*)&wl_d_xdg_wm_base_listener, null);
+        wl_proxy_add_listener(proxy, cast(void_func_t*)&wl_d_xdg_wm_base_listener, cast(void*) this);
     }
 
     /// Interface object that creates XdgWmBase objects.
-    static immutable(WlProxyInterface) iface()
+    static @property immutable(WlProxyInterface) iface()
     {
         return xdgWmBaseIface;
     }
@@ -113,6 +112,8 @@ final class XdgWmBase : WlProxy
         invalidSurfaceState = 4,
         /// the client provided an invalid positioner
         invalidPositioner = 5,
+        /// the client didn’t respond to a ping event in time
+        unresponsive = 6,
     }
 
     /++
@@ -122,7 +123,7 @@ final class XdgWmBase : WlProxy
      +
      +  Destroying a bound xdg_wm_base object while there are surfaces
      +  still alive created by this xdg_wm_base object instance is illegal
-     +  and will result in a protocol error.
+     +  and will result in a defunct_surfaces error.
      +/
     void destroy()
     {
@@ -145,7 +146,7 @@ final class XdgWmBase : WlProxy
             proxy, createPositionerOpCode, XdgPositioner.iface.native, null
         );
         if (!_pp) return null;
-        auto _p = WlProxy.get(_pp);
+        auto _p = wl_proxy_get_user_data(_pp);
         if (_p) return cast(XdgPositioner)_p;
         return new XdgPositioner(_pp);
     }
@@ -157,7 +158,7 @@ final class XdgWmBase : WlProxy
      +  itself is not a role, the corresponding surface may only be assigned
      +  a role extending xdg_surface, such as xdg_toplevel or xdg_popup. It is
      +  illegal to create an xdg_surface for a wl_surface which already has an
-     +  assigned role and this will result in a protocol error.
+     +  assigned role and this will result in a role error.
      +
      +  This creates an xdg_surface for the given surface. An xdg_surface is
      +  used as basis to define a role to a given surface, such as xdg_toplevel
@@ -174,7 +175,7 @@ final class XdgWmBase : WlProxy
             surface.proxy
         );
         if (!_pp) return null;
-        auto _p = WlProxy.get(_pp);
+        auto _p = wl_proxy_get_user_data(_pp);
         if (_p) return cast(XdgSurface)_p;
         return new XdgSurface(_pp);
     }
@@ -183,7 +184,8 @@ final class XdgWmBase : WlProxy
      +  respond to a ping event
      +
      +  A client must respond to a ping event with a pong request or
-     +  the client may be deemed unresponsive. See xdg_wm_base.ping.
+     +  the client may be deemed unresponsive. See xdg_wm_base.ping
+     +  and xdg_wm_base.error.unresponsive.
      +/
     void pong(uint serial)
     {
@@ -202,12 +204,14 @@ final class XdgWmBase : WlProxy
      +  Compositors can use this to determine if the client is still
      +  alive. It's unspecified what will happen if the client doesn't
      +  respond to the ping request, or in what timeframe. Clients should
-     +  try to respond in a reasonable amount of time.
+     +  try to respond in a reasonable amount of time. The “unresponsive”
+     +  error is provided for compositors that wish to disconnect unresponsive
+     +  clients.
      +
      +  A compositor is free to ping in any way it wants, but a client must
      +  always respond to any xdg_wm_base object it created.
      +/
-    void onPing(OnPingEventDg dg)
+    @property void onPing(OnPingEventDg dg)
     {
         _onPing = dg;
     }
@@ -236,12 +240,12 @@ final class XdgWmBase : WlProxy
  +  For an xdg_positioner object to be considered complete, it must have a
  +  non-zero size set by set_size, and a non-zero anchor rectangle set by
  +  set_anchor_rect. Passing an incomplete xdg_positioner object when
- +  positioning a surface raises an error.
+ +  positioning a surface raises an invalid_positioner error.
  +/
 final class XdgPositioner : WlProxy
 {
     /// Version of xdg_shell.xdg_positioner
-    enum ver = 4;
+    enum ver = 6;
 
     /// Build a XdgPositioner from a native object.
     private this(wl_proxy* native)
@@ -250,7 +254,7 @@ final class XdgPositioner : WlProxy
     }
 
     /// Interface object that creates XdgPositioner objects.
-    static immutable(WlProxyInterface) iface()
+    static @property immutable(WlProxyInterface) iface()
     {
         return xdgPositionerIface;
     }
@@ -434,7 +438,8 @@ final class XdgPositioner : WlProxy
      +  specified $(LPAREN)e.g. 'bottom_right' or 'top_left'$(RPAREN), then the child surface
      +  will be placed towards the specified gravity; otherwise, the child
      +  surface will be centered over the anchor point on any axis that had no
-     +  gravity specified.
+     +  gravity specified. If the gravity is not in the ‘gravity’ enum, an
+     +  invalid_input error is raised.
      +/
     void setGravity(Gravity gravity)
     {
@@ -460,7 +465,7 @@ final class XdgPositioner : WlProxy
      +
      +  The default adjustment is none.
      +/
-    void setConstraintAdjustment(uint constraintAdjustment)
+    void setConstraintAdjustment(ConstraintAdjustment constraintAdjustment)
     {
         wl_proxy_marshal(
             proxy, setConstraintAdjustmentOpCode, constraintAdjustment
@@ -570,8 +575,10 @@ final class XdgPositioner : WlProxy
  +
  +  After creating a role-specific object and setting it up, the client must
  +  perform an initial commit without any buffer attached. The compositor
- +  will reply with an xdg_surface.configure event. The client must
- +  acknowledge it and is then allowed to attach a buffer to map the surface.
+ +  will reply with initial wl_surface state such as
+ +  wl_surface.preferred_buffer_scale followed by an xdg_surface.configure
+ +  event. The client must acknowledge it and is then allowed to attach a
+ +  buffer to map the surface.
  +
  +  Mapping an xdg_surface-based role surface is defined as making it
  +  possible for the surface to be shown by the compositor. Note that
@@ -592,17 +599,17 @@ final class XdgPositioner : WlProxy
 final class XdgSurface : WlProxy
 {
     /// Version of xdg_shell.xdg_surface
-    enum ver = 4;
+    enum ver = 6;
 
     /// Build a XdgSurface from a native object.
     private this(wl_proxy* native)
     {
         super(native);
-        wl_proxy_add_listener(proxy, cast(void_func_t*)&wl_d_xdg_surface_listener, null);
+        wl_proxy_add_listener(proxy, cast(void_func_t*)&wl_d_xdg_surface_listener, cast(void*) this);
     }
 
     /// Interface object that creates XdgSurface objects.
-    static immutable(WlProxyInterface) iface()
+    static @property immutable(WlProxyInterface) iface()
     {
         return xdgSurfaceIface;
     }
@@ -638,16 +645,26 @@ final class XdgSurface : WlProxy
 
     enum Error : uint
     {
+        /// Surface was not fully constructed
         notConstructed = 1,
+        /// Surface was already constructed
         alreadyConstructed = 2,
+        /// Attaching a buffer to an unconfigured surface
         unconfiguredBuffer = 3,
+        /// Invalid serial number when acking a configure event
+        invalidSerial = 4,
+        /// Width or height was zero or negative
+        invalidSize = 5,
+        /// Surface was destroyed before its role object
+        defunctRoleObject = 6,
     }
 
     /++
      +  destroy the xdg_surface
      +
      +  Destroy the xdg_surface object. An xdg_surface must only be destroyed
-     +  after its role object has been destroyed.
+     +  after its role object has been destroyed, otherwise
+     +  a defunct_role_object error is raised.
      +/
     void destroy()
     {
@@ -672,7 +689,7 @@ final class XdgSurface : WlProxy
             proxy, getToplevelOpCode, XdgToplevel.iface.native, null
         );
         if (!_pp) return null;
-        auto _p = WlProxy.get(_pp);
+        auto _p = wl_proxy_get_user_data(_pp);
         if (_p) return cast(XdgToplevel)_p;
         return new XdgToplevel(_pp);
     }
@@ -697,7 +714,7 @@ final class XdgSurface : WlProxy
             positioner.proxy
         );
         if (!_pp) return null;
-        auto _p = WlProxy.get(_pp);
+        auto _p = wl_proxy_get_user_data(_pp);
         if (_p) return cast(XdgPopup)_p;
         return new XdgPopup(_pp);
     }
@@ -727,13 +744,22 @@ final class XdgSurface : WlProxy
      +  commit. This unset is meant for extremely simple clients.
      +
      +  The arguments are given in the surface-local coordinate space of
-     +  the wl_surface associated with this xdg_surface.
+     +  the wl_surface associated with this xdg_surface, and may extend outside
+     +  of the wl_surface itself to mark parts of the subsurface tree as part of
+     +  the window geometry.
      +
-     +  The width and height must be greater than zero. Setting an invalid size
-     +  will raise an error. When applied, the effective window geometry will be
-     +  the set window geometry clamped to the bounding rectangle of the
-     +  combined geometry of the surface of the xdg_surface and the associated
+     +  When applied, the effective window geometry will be the set window
+     +  geometry clamped to the bounding rectangle of the combined
+     +  geometry of the surface of the xdg_surface and the associated
      +  subsurfaces.
+     +
+     +  The effective geometry will not be recalculated unless a new call to
+     +  set_window_geometry is done and the new pending surface state is
+     +  subsequently applied.
+     +
+     +  The width and height of the effective window geometry must be
+     +  greater than zero. Setting an invalid size will raise an
+     +  invalid_size error.
      +/
     void setWindowGeometry(int x,
                            int y,
@@ -759,6 +785,8 @@ final class XdgSurface : WlProxy
      +
      +  If the client receives multiple configure events before it
      +  can respond to one, it only has to ack the last configure event.
+     +  Acking a configure event that was never sent raises an invalid_serial
+     +  error.
      +
      +  A client is not required to commit immediately after sending
      +  an ack_configure request - it may even ack_configure several times
@@ -767,6 +795,17 @@ final class XdgSurface : WlProxy
      +  A client may send multiple ack_configure requests before committing, but
      +  only the last request sent before a commit indicates which configure
      +  event the client really is responding to.
+     +
+     +  Sending an ack_configure request consumes the serial number sent with
+     +  the request, as well as serial numbers sent by all configure events
+     +  sent on this xdg_surface prior to the configure event referenced by
+     +  the committed serial.
+     +
+     +  It is an error to issue multiple ack_configure requests referencing a
+     +  serial from the same configure event, or to issue an ack_configure
+     +  request referencing a serial from a configure event issued before the
+     +  event identified by the last ack_configure request for the same
+     +  xdg_surface. Doing so will raise an invalid_serial error.
      +/
     void ackConfigure(uint serial)
     {
@@ -795,7 +834,7 @@ final class XdgSurface : WlProxy
      +  If the client receives multiple configure events before it can respond
      +  to one, it is free to discard all but the last event it received.
      +/
-    void onConfigure(OnConfigureEventDg dg)
+    @property void onConfigure(OnConfigureEventDg dg)
     {
         _onConfigure = dg;
     }
@@ -812,6 +851,10 @@ final class XdgSurface : WlProxy
  +  id, and well as trigger user interactive operations such as interactive
  +  resize and move.
  +
+ +  A xdg_toplevel by default is responsible for providing the full intended
+ +  visual representation of the toplevel, which depending on the window
+ +  state, may mean things like a title bar, window controls and drop shadow.
+ +
  +  Unmapping an xdg_toplevel means that the surface cannot be shown
  +  by the compositor until it is explicitly mapped again.
  +  All active operations $(LPAREN)e.g., move, resize$(RPAREN) are canceled and all
@@ -827,17 +870,17 @@ final class XdgSurface : WlProxy
 final class XdgToplevel : WlProxy
 {
     /// Version of xdg_shell.xdg_toplevel
-    enum ver = 4;
+    enum ver = 6;
 
     /// Build a XdgToplevel from a native object.
     private this(wl_proxy* native)
     {
         super(native);
-        wl_proxy_add_listener(proxy, cast(void_func_t*)&wl_d_xdg_toplevel_listener, null);
+        wl_proxy_add_listener(proxy, cast(void_func_t*)&wl_d_xdg_toplevel_listener, cast(void*) this);
     }
 
     /// Interface object that creates XdgToplevel objects.
-    static immutable(WlProxyInterface) iface()
+    static @property immutable(WlProxyInterface) iface()
     {
         return xdgToplevelIface;
     }
@@ -906,6 +949,8 @@ final class XdgToplevel : WlProxy
     enum onCloseSinceVersion = 1;
     /// xdg_shell protocol version introducing XdgToplevel.onConfigureBounds.
     enum onConfigureBoundsSinceVersion = 4;
+    /// xdg_shell protocol version introducing XdgToplevel.onWmCapabilities.
+    enum onWmCapabilitiesSinceVersion = 5;
 
     /// Event delegate signature of XdgToplevel.onConfigure.
     alias OnConfigureEventDg = void delegate(XdgToplevel xdgToplevel,
@@ -918,11 +963,18 @@ final class XdgToplevel : WlProxy
     alias OnConfigureBoundsEventDg = void delegate(XdgToplevel xdgToplevel,
                                                    int width,
                                                    int height);
+    /// Event delegate signature of XdgToplevel.onWmCapabilities.
+    alias OnWmCapabilitiesEventDg = void delegate(XdgToplevel xdgToplevel,
+                                                  wl_array* capabilities);
 
     enum Error : uint
     {
         /// provided value is not a valid variant of the resize_edge enum
         invalidResizeEdge = 0,
+        /// invalid parent toplevel
+        invalidParent = 1,
+        /// client provided an invalid min or max size
+        invalidSize = 2,
     }
 
     /++
@@ -969,6 +1021,19 @@ final class XdgToplevel : WlProxy
         tiledRight = 6,
         tiledTop = 7,
         tiledBottom = 8,
+        suspended = 9,
+    }
+
+    enum WmCapabilities : uint
+    {
+        /// show_window_menu is available
+        windowMenu = 1,
+        /// set_maximized and unset_maximized are available
+        maximize = 2,
+        /// set_fullscreen and unset_fullscreen are available
+        fullscreen = 3,
+        /// set_minimized is available
+        minimize = 4,
     }
 
     /++
@@ -1004,6 +1069,10 @@ final class XdgToplevel : WlProxy
      +  the now-unmapped surface. If the now-unmapped surface has no parent,
      +  its children's parent is unset. If the now-unmapped surface becomes
      +  mapped again, its parent-child relationship is not restored.
+     +
+     +  The parent toplevel must not be one of the child toplevel's
+     +  descendants, and the parent must be different from the child toplevel,
+     +  otherwise the invalid_parent protocol error is raised.
      +/
     void setParent(XdgToplevel parent)
     {
@@ -1055,7 +1124,7 @@ final class XdgToplevel : WlProxy
      +  application identifiers and how they relate to well-known D-Bus
      +  names and .desktop files.
      +
-     +  [0] http://standards.freedesktop.org/desktop-entry-spec/
+     +  [0] https://standards.freedesktop.org/desktop-entry-spec/
      +/
     void setAppId(string appId)
     {
@@ -1074,7 +1143,8 @@ final class XdgToplevel : WlProxy
      +  This request asks the compositor to pop up such a window menu at
      +  the given position, relative to the local surface coordinates of
      +  the parent surface. There are no guarantees as to what menu items
-     +  the window menu contains.
+     +  the window menu contains, or even if a window menu will be drawn
+     +  at all.
      +
      +  This request must be used in response to some sort of user action
      +  like a button press, key press, or touch down event.
@@ -1146,10 +1216,10 @@ final class XdgToplevel : WlProxy
      +
      +  The edges parameter specifies how the surface should be resized, and
      +  is one of the values of the resize_edge enum. Values not matching
-     +  a variant of the enum will cause a protocol error. The compositor
-     +  may use this information to update the surface position for example
-     +  when dragging the top left corner. The compositor may also use
-     +  this information to adapt its behavior, e.g. choose an appropriate
+     +  a variant of the enum will cause the invalid_resize_edge protocol error.
+     +  The compositor may use this information to update the surface position
+     +  for example when dragging the top left corner. The compositor may also
+     +  use this information to adapt its behavior, e.g. choose an appropriate
      +  cursor image.
      +/
     void resize(WlSeat seat,
@@ -1193,11 +1263,11 @@ final class XdgToplevel : WlProxy
      +  request.
      +
      +  Requesting a maximum size to be smaller than the minimum size of
-     +  a surface is illegal and will result in a protocol error.
+     +  a surface is illegal and will result in an invalid_size error.
      +
      +  The width and height must be greater than or equal to zero. Using
-     +  strictly negative values for width and height will result in a
-     +  protocol error.
+     +  strictly negative values for width or height will result in a
+     +  invalid_size error.
      +/
     void setMaxSize(int width,
                     int height)
@@ -1239,11 +1309,11 @@ final class XdgToplevel : WlProxy
      +  request.
      +
      +  Requesting a minimum size to be larger than the maximum size of
-     +  a surface is illegal and will result in a protocol error.
+     +  a surface is illegal and will result in an invalid_size error.
      +
      +  The width and height must be greater than or equal to zero. Using
      +  strictly negative values for width and height will result in a
-     +  protocol error.
+     +  invalid_size error.
      +/
     void setMinSize(int width,
                     int height)
@@ -1419,7 +1489,7 @@ final class XdgToplevel : WlProxy
      +  Clients must send an ack_configure in response to this event. See
      +  xdg_surface.configure and xdg_surface.ack_configure for details.
      +/
-    void onConfigure(OnConfigureEventDg dg)
+    @property void onConfigure(OnConfigureEventDg dg)
     {
         _onConfigure = dg;
     }
@@ -1436,7 +1506,7 @@ final class XdgToplevel : WlProxy
      +  window. The client may choose to ignore this request, or show
      +  a dialog to ask the user to save their data, etc.
      +/
-    void onClose(OnCloseEventDg dg)
+    @property void onClose(OnCloseEventDg dg)
     {
         _onClose = dg;
     }
@@ -1460,14 +1530,44 @@ final class XdgToplevel : WlProxy
      +  xdg_toplevel.configure_bounds will be sent, followed by
      +  xdg_toplevel.configure and xdg_surface.configure.
      +/
-    void onConfigureBounds(OnConfigureBoundsEventDg dg)
+    @property void onConfigureBounds(OnConfigureBoundsEventDg dg)
     {
         _onConfigureBounds = dg;
+    }
+
+    /++
+     +  compositor capabilities
+     +
+     +  This event advertises the capabilities supported by the compositor. If
+     +  a capability isn't supported, clients should hide or disable the UI
+     +  elements that expose this functionality. For instance, if the
+     +  compositor doesn't advertise support for minimized toplevels, a button
+     +  triggering the set_minimized request should not be displayed.
+     +
+     +  The compositor will ignore requests it doesn't support. For instance,
+     +  a compositor which doesn't advertise support for minimized will ignore
+     +  set_minimized requests.
+     +
+     +  Compositors must send this event once before the first
+     +  xdg_surface.configure event. When the capabilities change, compositors
+     +  must send this event again and then send an xdg_surface.configure
+     +  event.
+     +
+     +  The configured state should not be applied immediately. See
+     +  xdg_surface.configure for details.
+     +
+     +  The capabilities are sent as an array of 32-bit unsigned integers in
+     +  native endianness.
+     +/
+    @property void onWmCapabilities(OnWmCapabilitiesEventDg dg)
+    {
+        _onWmCapabilities = dg;
     }
 
     private OnConfigureEventDg _onConfigure;
     private OnCloseEventDg _onClose;
     private OnConfigureBoundsEventDg _onConfigureBounds;
+    private OnWmCapabilitiesEventDg _onWmCapabilities;
 }
 
 /++
@@ -1501,17 +1601,17 @@ final class XdgToplevel : WlProxy
 final class XdgPopup : WlProxy
 {
     /// Version of xdg_shell.xdg_popup
-    enum ver = 4;
+    enum ver = 6;
 
     /// Build a XdgPopup from a native object.
     private this(wl_proxy* native)
     {
         super(native);
-        wl_proxy_add_listener(proxy, cast(void_func_t*)&wl_d_xdg_popup_listener, null);
+        wl_proxy_add_listener(proxy, cast(void_func_t*)&wl_d_xdg_popup_listener, cast(void*) this);
     }
 
     /// Interface object that creates XdgPopup objects.
-    static immutable(WlProxyInterface) iface()
+    static @property immutable(WlProxyInterface) iface()
     {
         return xdgPopupIface;
     }
@@ -1561,8 +1661,8 @@ final class XdgPopup : WlProxy
      +  This destroys the popup. Explicitly destroying the xdg_popup
      +  object will also dismiss the popup, and unmap the surface.
      +
-     +  If this xdg_popup is not the "topmost" popup, a protocol error
-     +  will be sent.
+     +  If this xdg_popup is not the "topmost" popup, the
+     +  xdg_wm_base.not_the_topmost_popup protocol error will be sent.
      +/
     void destroy()
     {
@@ -1600,10 +1700,6 @@ final class XdgPopup : WlProxy
      +  When compositors choose to dismiss a popup, they may dismiss every
      +  nested grabbing popup as well. When a compositor dismisses popups, it
      +  will follow the same dismissing order as required from the client.
-     +
-     +  The parent of a grabbing popup must either be another xdg_popup with an
-     +  active explicit grab, or an xdg_popup or xdg_toplevel, if there are no
-     +  explicit grabs already taken.
      +
      +  If the topmost grabbing popup is destroyed, the grab will be returned to
      +  the parent of the popup, if that parent previously had an explicit grab.
@@ -1676,7 +1772,7 @@ final class XdgPopup : WlProxy
      +  it may be sent again if the popup is setup with an xdg_positioner with
      +  set_reactive requested, or in response to xdg_popup.reposition requests.
      +/
-    void onConfigure(OnConfigureEventDg dg)
+    @property void onConfigure(OnConfigureEventDg dg)
     {
         _onConfigure = dg;
     }
@@ -1688,7 +1784,7 @@ final class XdgPopup : WlProxy
      +  compositor. The client should destroy the xdg_popup object at this
      +  point.
      +/
-    void onPopupDone(OnPopupDoneEventDg dg)
+    @property void onPopupDone(OnPopupDoneEventDg dg)
     {
         _onPopupDone = dg;
     }
@@ -1712,7 +1808,7 @@ final class XdgPopup : WlProxy
      +  acknowledge the new popup configuration for the new position to take
      +  effect. See xdg_surface.ack_configure for details.
      +/
-    void onRepositioned(OnRepositionedEventDg dg)
+    @property void onRepositioned(OnRepositionedEventDg dg)
     {
         _onRepositioned = dg;
     }
@@ -1841,7 +1937,7 @@ shared static this()
         wl_message("ping", "u", &msgTypes[0]),
     ];
     ifaces[xdgWmBaseIndex].name = "xdg_wm_base";
-    ifaces[xdgWmBaseIndex].version_ = 4;
+    ifaces[xdgWmBaseIndex].version_ = 6;
     ifaces[xdgWmBaseIndex].method_count = 4;
     ifaces[xdgWmBaseIndex].methods = xdg_wm_base_requests.ptr;
     ifaces[xdgWmBaseIndex].event_count = 1;
@@ -1860,7 +1956,7 @@ shared static this()
         wl_message("set_parent_configure", "3u", &msgTypes[0]),
     ];
     ifaces[xdgPositionerIndex].name = "xdg_positioner";
-    ifaces[xdgPositionerIndex].version_ = 4;
+    ifaces[xdgPositionerIndex].version_ = 6;
     ifaces[xdgPositionerIndex].method_count = 10;
     ifaces[xdgPositionerIndex].methods = xdg_positioner_requests.ptr;
 
@@ -1875,7 +1971,7 @@ shared static this()
         wl_message("configure", "u", &msgTypes[0]),
     ];
     ifaces[xdgSurfaceIndex].name = "xdg_surface";
-    ifaces[xdgSurfaceIndex].version_ = 4;
+    ifaces[xdgSurfaceIndex].version_ = 6;
     ifaces[xdgSurfaceIndex].method_count = 5;
     ifaces[xdgSurfaceIndex].methods = xdg_surface_requests.ptr;
     ifaces[xdgSurfaceIndex].event_count = 1;
@@ -1901,12 +1997,13 @@ shared static this()
         wl_message("configure", "iia", &msgTypes[0]),
         wl_message("close", "", &msgTypes[0]),
         wl_message("configure_bounds", "4ii", &msgTypes[0]),
+        wl_message("wm_capabilities", "5a", &msgTypes[0]),
     ];
     ifaces[xdgToplevelIndex].name = "xdg_toplevel";
-    ifaces[xdgToplevelIndex].version_ = 4;
+    ifaces[xdgToplevelIndex].version_ = 6;
     ifaces[xdgToplevelIndex].method_count = 14;
     ifaces[xdgToplevelIndex].methods = xdg_toplevel_requests.ptr;
-    ifaces[xdgToplevelIndex].event_count = 3;
+    ifaces[xdgToplevelIndex].event_count = 4;
     ifaces[xdgToplevelIndex].events = xdg_toplevel_events.ptr;
 
     auto xdg_popup_requests = [
@@ -1920,7 +2017,7 @@ shared static this()
         wl_message("repositioned", "3u", &msgTypes[0]),
     ];
     ifaces[xdgPopupIndex].name = "xdg_popup";
-    ifaces[xdgPopupIndex].version_ = 4;
+    ifaces[xdgPopupIndex].version_ = 6;
     ifaces[xdgPopupIndex].method_count = 3;
     ifaces[xdgPopupIndex].methods = xdg_popup_requests.ptr;
     ifaces[xdgPopupIndex].event_count = 3;
@@ -1952,8 +2049,8 @@ extern(C) nothrow
                                   uint serial)
     {
         nothrowFnWrapper!({
-            auto _p = WlProxy.get(proxy);
-            assert(_p, "listener stub without proxy");
+            auto _p = data;
+            assert(_p, "listener stub without the right userdata");
             auto _i = cast(XdgWmBase)_p;
             assert(_i, "listener stub proxy is not XdgWmBase");
             if (_i._onPing)
@@ -1978,8 +2075,8 @@ extern(C) nothrow
                                        uint serial)
     {
         nothrowFnWrapper!({
-            auto _p = WlProxy.get(proxy);
-            assert(_p, "listener stub without proxy");
+            auto _p = data;
+            assert(_p, "listener stub without the right userdata");
             auto _i = cast(XdgSurface)_p;
             assert(_i, "listener stub proxy is not XdgSurface");
             if (_i._onConfigure)
@@ -2002,11 +2099,15 @@ extern(C) nothrow
                       wl_proxy* proxy,
                       int width,
                       int height) configure_bounds;
+        void function(void* data,
+                      wl_proxy* proxy,
+                      wl_array* capabilities) wm_capabilities;
     }
 
     __gshared wl_d_xdg_toplevel_listener = xdg_toplevel_listener (&wl_d_on_xdg_toplevel_configure,
                                                                   &wl_d_on_xdg_toplevel_close,
-                                                                  &wl_d_on_xdg_toplevel_configure_bounds);
+                                                                  &wl_d_on_xdg_toplevel_configure_bounds,
+                                                                  &wl_d_on_xdg_toplevel_wm_capabilities);
 
     void wl_d_on_xdg_toplevel_configure(void* data,
                                         wl_proxy* proxy,
@@ -2015,8 +2116,8 @@ extern(C) nothrow
                                         wl_array* states)
     {
         nothrowFnWrapper!({
-            auto _p = WlProxy.get(proxy);
-            assert(_p, "listener stub without proxy");
+            auto _p = data;
+            assert(_p, "listener stub without the right userdata");
             auto _i = cast(XdgToplevel)_p;
             assert(_i, "listener stub proxy is not XdgToplevel");
             if (_i._onConfigure)
@@ -2030,8 +2131,8 @@ extern(C) nothrow
                                     wl_proxy* proxy)
     {
         nothrowFnWrapper!({
-            auto _p = WlProxy.get(proxy);
-            assert(_p, "listener stub without proxy");
+            auto _p = data;
+            assert(_p, "listener stub without the right userdata");
             auto _i = cast(XdgToplevel)_p;
             assert(_i, "listener stub proxy is not XdgToplevel");
             if (_i._onClose)
@@ -2047,13 +2148,29 @@ extern(C) nothrow
                                                int height)
     {
         nothrowFnWrapper!({
-            auto _p = WlProxy.get(proxy);
-            assert(_p, "listener stub without proxy");
+            auto _p = data;
+            assert(_p, "listener stub without the right userdata");
             auto _i = cast(XdgToplevel)_p;
             assert(_i, "listener stub proxy is not XdgToplevel");
             if (_i._onConfigureBounds)
             {
                 _i._onConfigureBounds(_i, width, height);
+            }
+        });
+    }
+
+    void wl_d_on_xdg_toplevel_wm_capabilities(void* data,
+                                              wl_proxy* proxy,
+                                              wl_array* capabilities)
+    {
+        nothrowFnWrapper!({
+            auto _p = data;
+            assert(_p, "listener stub without the right userdata");
+            auto _i = cast(XdgToplevel)_p;
+            assert(_i, "listener stub proxy is not XdgToplevel");
+            if (_i._onWmCapabilities)
+            {
+                _i._onWmCapabilities(_i, capabilities);
             }
         });
     }
@@ -2085,8 +2202,8 @@ extern(C) nothrow
                                      int height)
     {
         nothrowFnWrapper!({
-            auto _p = WlProxy.get(proxy);
-            assert(_p, "listener stub without proxy");
+            auto _p = data;
+            assert(_p, "listener stub without the right userdata");
             auto _i = cast(XdgPopup)_p;
             assert(_i, "listener stub proxy is not XdgPopup");
             if (_i._onConfigure)
@@ -2100,8 +2217,8 @@ extern(C) nothrow
                                       wl_proxy* proxy)
     {
         nothrowFnWrapper!({
-            auto _p = WlProxy.get(proxy);
-            assert(_p, "listener stub without proxy");
+            auto _p = data;
+            assert(_p, "listener stub without the right userdata");
             auto _i = cast(XdgPopup)_p;
             assert(_i, "listener stub proxy is not XdgPopup");
             if (_i._onPopupDone)
@@ -2116,8 +2233,8 @@ extern(C) nothrow
                                         uint token)
     {
         nothrowFnWrapper!({
-            auto _p = WlProxy.get(proxy);
-            assert(_p, "listener stub without proxy");
+            auto _p = data;
+            assert(_p, "listener stub without the right userdata");
             auto _i = cast(XdgPopup)_p;
             assert(_i, "listener stub proxy is not XdgPopup");
             if (_i._onRepositioned)

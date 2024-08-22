@@ -17,7 +17,7 @@
 		"libasync": "0.9.7",
 		"memutils": "1.0.10",
 		"taggedalgebraic": "0.11.23",
-		"wayland": "0.3.1",
+		"wayland": {"path":"../wayland-d/"},
 		"x11d": "1.0.24",
 		"xcb-d": "2.1.1+1.11.1",
 		"xlib-d": "0.3.0"

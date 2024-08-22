@@ -13,8 +13,6 @@ version (Wayland):
 
     import libasync;
 
-    import wayland.native.client: wl_proxy_get_user_data, wl_proxy_set_user_data;
-
     import wayland.client;
     import wayland.cursor;
     import wayland.egl;
@@ -159,13 +157,13 @@ version (Wayland):
                         pointer.onEnter = (pointer, serial, surface, x, y) {
                             currentSerial = serial;
                             enterSerial = serial;
-                            currentWindow = cast(WaylandWindow) wl_proxy_get_user_data(surface.proxy());
+                            currentWindow = cast(WaylandWindow) surface.userData();
                             currentWindow.onHoverStart(Point(cast(int) x, cast(int) y));
                         };
 
                         pointer.onLeave = (pointer, serial, surface) {
                             currentSerial = serial;
-                            auto win = cast(WaylandWindow) wl_proxy_get_user_data(surface.proxy());
+                            auto win = cast(WaylandWindow) surface.userData();
                             assert(win == currentWindow, "Left a surface that wasn't hovered.");
                             currentWindow = null;
                             win.onHoverEnd();
@@ -243,7 +241,7 @@ version (Wayland):
 
                         touch.onDown = (touch, serial, time, surface, id, x, y) {
                             currentSerial = serial;
-                            touchWindow = cast(WaylandWindow) wl_proxy_get_user_data(surface.proxy());
+                            touchWindow = cast(WaylandWindow) surface.userData();
                             touchStatus = TouchStatus.start;
                             touchLocation = Point(cast(int) x, cast(int) y);
                         };
@@ -277,12 +275,19 @@ version (Wayland):
             });
 
             AsyncEvent event = new AsyncEvent(super._eventLoop, display.getFd());
+            bool reading = false;
             event.run((code) {
-                while (display.prepareRead() != 0) {
+                if (display.prepareRead() != 0) {
                     display.dispatchPending();
+                    return;
                 }
                 display.flush();
-                display.readEvents();
+
+                if (display.readEvents() != 0) {
+                    display.cancelRead();
+                    return;
+                }
+
                 display.dispatchPending();
             });
         }
@@ -435,7 +440,7 @@ version (Wayland):
             trace("Wayland surface is being made.");
             scope(success) trace("Wayland surface has successfully been made!");
             surface = backend.compositor.createSurface();
-            wl_proxy_set_user_data(surface.proxy(), cast(void*) this);
+            surface.userData = cast(void*) this;
 
             xdgSurface = backend.windowManager.getXdgSurface(surface);
             xdgSurface.onConfigure = &onSurfaceConfigure;
@@ -561,16 +566,20 @@ version (Wayland):
         }
 
         void paint(Context context) {
+            const scaling = scaling();
+
             context.save();
             scope(exit) context.restore();
 
             if (useEmulatedResizeBorders) {
                 context.sourceRgba(0, 0, 0, .15);
-                context.dropShadow(resizeMarginSize, resizeMarginSize, size.width, size.height, 0, resizeMarginSize);
+                context.dropShadow(resizeMarginSize, resizeMarginSize, size.width * scaling, size.height * scaling , 0, resizeMarginSize);
                 context.translate(resizeMarginSize, resizeMarginSize);
-                context.rectangle(0, 0, size.tupleof);
-                context.clip();
             }
+
+            context.scale(scaling, scaling);
+            context.rectangle(0, 0, size.tupleof);
+            context.clip();
 
             window.paint(context);
         }
@@ -582,12 +591,19 @@ version (Wayland):
             }
 
             dirty = true;
-            surface.frame().onDone(&onRedraw);
-            surface.commit();
+
+            backend.runInMainThread({
+                renderer.draw(this);
+                surface.commit();
+                dirty = false;
+            });
         }
 
         void onRedraw(WlCallback callback, uint callbackData) {
+            callback.destroy();
+
             renderer.draw(this);
+            surface.commit();
             dirty = false;
         }
 
@@ -624,7 +640,6 @@ version (Wayland):
         }
 
         void onHover(Point location) {
-            location = location.unscale(scaling);
             if (useEmulatedResizeBorders) {
                 auto sz = _trueSize;
                 if (resizable && (location.x < resizeMarginSize || location.y < resizeMarginSize
@@ -691,6 +706,7 @@ version (Wayland):
                 location.x -= resizeMarginSize;
                 location.y -= resizeMarginSize;
             }
+            location = location.unscale(scaling);
 
             if (mousePos.tag != WaylandMousePos.Tag.insideWindow) {
                 window.onHoverStart(location);
@@ -701,10 +717,9 @@ version (Wayland):
         }
 
         void onTouchStart(Point location) {
-            location = location.unscale(scaling);
             if (useEmulatedResizeBorders) {
-                auto sz = _trueSize;
-                if (location.x < resizeMarginSize || location.y < resizeMarginSize || location.x > sz.width + 2 * resizeMarginSize || location.y > sz.height + 2 * resizeMarginSize) {
+                auto sz = size;
+                if (location.x < resizeMarginSize || location.y < resizeMarginSize || location.x > sz.width + resizeMarginSize || location.y > sz.height + resizeMarginSize) {
                     warning("Attempted to resize the window with touch: this is not yet supported.");
                     // onHover(location);
                     // onClickStart(MouseButton.left);
@@ -713,12 +728,12 @@ version (Wayland):
                 location.x -= resizeMarginSize;
                 location.y -= resizeMarginSize;
             }
+            location = location.unscale(scaling);
 
             window.onTouchStart(location);
         }
 
         void onTouchMove(Point location) {
-            location = location.unscale(scaling);
             if (useEmulatedResizeBorders) {
                 location.x -= resizeMarginSize;
                 location.y -= resizeMarginSize;
@@ -727,12 +742,12 @@ version (Wayland):
                     return;
                 }
             }
+            location = location.unscale(scaling);
 
             window.onTouchMove(location);
         }
 
         void onTouchEnd(Point location) {
-            location = location.unscale(scaling);
             if (useEmulatedResizeBorders) {
                 location.x -= resizeMarginSize;
                 location.y -= resizeMarginSize;
@@ -741,6 +756,7 @@ version (Wayland):
                     return;
                 }
             }
+            location = location.unscale(scaling);
 
             window.onTouchEnd(location);
         }
@@ -926,16 +942,15 @@ version (Wayland):
             if (!xdgSurface) {
                 return;
             }
-            // FIXME fishy scaling.
-            _trueSize = _userSize; // .scale(scaling);
+
+            _trueSize = _userSize.scale(scaling);
             if (useEmulatedResizeBorders) {
-                auto trueMarginSize = resizeMarginSize * scaling;
-                xdgSurface.setWindowGeometry(cast(int) trueMarginSize, cast(int) trueMarginSize, _userSize.scale(scaling).tupleof);
-                auto trueBorderSize = cast(int) (2 * trueMarginSize);
+                xdgSurface.setWindowGeometry(cast(int) resizeMarginSize, cast(int) resizeMarginSize, _trueSize.tupleof);
+                auto trueBorderSize = cast(int) (2 * resizeMarginSize);
                 _trueSize.width += trueBorderSize;
                 _trueSize.height += trueBorderSize;
             } else {
-                xdgSurface.setWindowGeometry(0, 0, _userSize.scale(scaling).tupleof);
+                xdgSurface.setWindowGeometry(0, 0, _trueSize.tupleof);
             }
             if (!renderer) {
                 return;
@@ -1225,7 +1240,7 @@ version (Wayland):
         }
 
         Size canvasSize() {
-            return Size(cast(uint) ceil(_trueSize.width * scaling), cast(uint) ceil(_trueSize.height * scaling));
+            return _trueSize;
         }
 
         version (NanoVega) {
@@ -1312,7 +1327,7 @@ version (Wayland):
                 if (!eglWindow) {
                     return;
                 }
-                eglWindow.resize(cast(int) ceil(width * scaling), cast(int) ceil(height * scaling), 0, 0);
+                eglWindow.resize(width, height, 0, 0);
                 checkError();
             }
 

@@ -212,7 +212,6 @@ class Window: Container!Widget {
     @StateSetter Window size(Size value) { backendWindow.size(value); return this; }
     void onResize(Size size) {
         allocation = Rectangle(Point.zero, size);
-        scheduleSizeAllocation();
     }
 
     Size layoutSize;
