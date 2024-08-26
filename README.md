@@ -93,6 +93,8 @@ because splitting everything from the start is unpractical for development.
 
 ## Known bugs
 
+#### _Vulkan backend is bad_
+
 - Resizing from the top left corner with the Vulkan backend is making the window jump 
 the first time.
 - Resizing a vulkan window is a bit laggy (it's a VkVG issue tho).

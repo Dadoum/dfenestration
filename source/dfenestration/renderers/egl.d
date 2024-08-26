@@ -1,70 +1,179 @@
+/++
+ + Collection of hacks to make the EGL binding behave correctly.
+ +/
 module dfenestration.renderers.egl;
 
 version (Have_bindbc_gles):
 
 public import bindbc.gles.egl;
+import bindbc.gles.egl;
+import bindbc.loader.sharedlib;
+import bindbc.opengl;
 
-// HACK: use of a string in the mixin
-mixin template DefaultEGLBackend() {
-    import bindbc.gles.egl;
+import std.exception;
+import std.logger;
 
-    import dfenestration.renderers.egl;
+private alias libGLES = __traits(getMember, bindbc.gles.egl, "lib");
+private alias GLESVersion = __traits(getMember, bindbc.gles.egl, "loadedVersion");
 
-    EGLDisplay eglDisplay;
-    EGLConfig eglConfig;
-
-    EGLContext eglContext;
-
-    static assert(is(typeof(getPlatformDisplay)), "Implement `EGLDisplay getPlatformDisplay()`.");
-
-    void loadGL() {
-        loadEGL();
-        eglDisplay = enforce(getPlatformDisplay());
-
-        EGLint major, minor;
-        enforce(eglInitialize(eglDisplay, &major, &minor) == EGL_TRUE);
-        checkError();
-        trace("EGL ", major, ".", minor, " has been loaded");
-
-        enforce(eglBindAPI(EGL_OPENGL_API) == EGL_TRUE);
-        checkError();
-
-        int[] attributes = [
-            EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-            EGL_CONFORMANT,        EGL_OPENGL_BIT,
-            EGL_RENDERABLE_TYPE,   EGL_OPENGL_BIT,
-            EGL_COLOR_BUFFER_TYPE, EGL_RGB_BUFFER,
-
-            EGL_RED_SIZE, 8,
-            EGL_GREEN_SIZE, 8,
-            EGL_BLUE_SIZE, 8,
-            EGL_ALPHA_SIZE, 8,
-            EGL_BUFFER_SIZE, 32,
-            EGL_NONE
-        ];
-
-        EGLint numConfig;
-        enforce(eglChooseConfig(eglDisplay, attributes.ptr, &eglConfig, 1, &numConfig) == EGL_TRUE);
-        checkError();
-
-        int[9] ctxAttributes = [
-            EGL_CONTEXT_MAJOR_VERSION_KHR, 3,
-            EGL_CONTEXT_MINOR_VERSION_KHR, 0,
-            EGL_NONE, EGL_NONE,
-            EGL_NONE, EGL_NONE,
-            EGL_NONE
-        ];
-
-        debug {
-            ctxAttributes[4..8] = [
-                EGL_CONTEXT_OPENGL_DEBUG, EGL_TRUE,
-                EGL_CONTEXT_FLAGS_KHR, EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR,
-            ];
-        }
-
-        eglContext = enforce(eglCreateContext (eglDisplay, eglConfig, EGL_NO_CONTEXT, ctxAttributes.ptr));
-        checkError();
+bool loadEGLLibrary()
+{
+    version(Windows) {
+        const(char)[][1] libNames = ["libegl.dll"];
     }
+    else version(Posix) {
+        const(char)[][2] libNames = [
+            "libEGL.so.1",
+            "libEGL.so"
+        ];
+    }
+    else static assert(0, "bindbc-gles is not yet supported on this platform");
+
+    foreach(name; libNames) {
+        if(loadEGL(name.ptr)) return true;
+    }
+    return false;
+}
+
+bool loadEGLLibrary(const(char)* libName)
+{
+    // If the library isn't yet loaded, load it now.
+    if(libGLES == invalidHandle) {
+        libGLES = load(libName);
+        return libGLES != invalidHandle;
+    }
+
+    return true;
+}
+
+void loadBasicEGLSymbols() {
+    auto lib = libGLES;
+    lib.bindSymbol( cast( void** )&eglGetError, "eglGetError" );
+    lib.bindSymbol( cast( void** )&eglGetDisplay, "eglGetDisplay" );
+    lib.bindSymbol( cast( void** )&eglInitialize, "eglInitialize" );
+    lib.bindSymbol( cast( void** )&eglTerminate, "eglTerminate" );
+}
+
+void initializeEGLForDisplay(EGLDisplay eglDisplay, out EGLConfig eglConfig, out EGLContext eglContext) {
+    EGLint major, minor;
+
+    enforce(eglInitialize(eglDisplay, &major, &minor) == EGL_TRUE);
+    enforce(major == 1, "Unknown EGL version");
+    checkError();
+
+    auto lib = libGLES;
+
+    if( minor >= 0 ) {
+        lib.bindSymbol( cast( void** )&eglQueryString, "eglQueryString" );
+        lib.bindSymbol( cast( void** )&eglGetConfigs, "eglGetConfigs" );
+        lib.bindSymbol( cast( void** )&eglChooseConfig, "eglChooseConfig" );
+        lib.bindSymbol( cast( void** )&eglGetConfigAttrib, "eglGetConfigAttrib" );
+        lib.bindSymbol( cast( void** )&eglCreateWindowSurface, "eglCreateWindowSurface" );
+        lib.bindSymbol( cast( void** )&eglCreatePbufferSurface, "eglCreatePbufferSurface" );
+        lib.bindSymbol( cast( void** )&eglCreatePixmapSurface, "eglCreatePixmapSurface" );
+        lib.bindSymbol( cast( void** )&eglDestroySurface, "eglDestroySurface" );
+        lib.bindSymbol( cast( void** )&eglQuerySurface, "eglQuerySurface" );
+        lib.bindSymbol( cast( void** )&eglCreateContext, "eglCreateContext" );
+        lib.bindSymbol( cast( void** )&eglDestroyContext, "eglDestroyContext" );
+        lib.bindSymbol( cast( void** )&eglMakeCurrent, "eglMakeCurrent" );
+        lib.bindSymbol( cast( void** )&eglGetCurrentSurface, "eglGetCurrentSurface" );
+        lib.bindSymbol( cast( void** )&eglGetCurrentDisplay, "eglGetCurrentDisplay" );
+        lib.bindSymbol( cast( void** )&eglQueryContext, "eglQueryContext" );
+        lib.bindSymbol( cast( void** )&eglWaitGL, "eglWaitGL" );
+        lib.bindSymbol( cast( void** )&eglWaitNative, "eglWaitNative" );
+        lib.bindSymbol( cast( void** )&eglSwapBuffers, "eglSwapBuffers" );
+        lib.bindSymbol( cast( void** )&eglCopyBuffers, "eglCopyBuffers" );
+        lib.bindSymbol( cast( void** )&eglGetProcAddress, "eglGetProcAddress" );
+        GLESVersion = EGLSupport.EGL10;
+    }
+    if( minor >= 1 ) {
+        lib.bindSymbol( cast( void** )&eglSurfaceAttrib, "eglSurfaceAttrib" );
+        lib.bindSymbol( cast( void** )&eglBindTexImage, "eglBindTexImage" );
+        lib.bindSymbol( cast( void** )&eglReleaseTexImage, "eglReleaseTexImage" );
+        lib.bindSymbol( cast( void** )&eglSwapInterval, "eglSwapInterval" );
+        GLESVersion = EGLSupport.EGL11;
+    }
+    if( minor >= 2 ) {
+        lib.bindSymbol( cast( void** )&eglBindAPI, "eglBindAPI" );
+        lib.bindSymbol( cast( void** )&eglQueryAPI, "eglQueryAPI" );
+        lib.bindSymbol( cast( void** )&eglWaitClient, "eglWaitClient" );
+        lib.bindSymbol( cast( void** )&eglReleaseThread, "eglReleaseThread" );
+        lib.bindSymbol( cast( void** )&eglCreatePbufferFromClientBuffer, "eglCreatePbufferFromClientBuffer" );
+        GLESVersion = EGLSupport.EGL12;
+    }
+    if( minor >= 3 ) {
+        GLESVersion = EGLSupport.EGL13;
+    }
+    if( minor >= 4 ) {
+        lib.bindSymbol( cast( void** )&eglGetCurrentContext, "eglGetCurrentContext" );
+        GLESVersion = EGLSupport.EGL14;
+    }
+    if( minor >= 5 ) {
+        lib.bindSymbol( cast( void** )&eglCreateSync, "eglCreateSync" );
+        lib.bindSymbol( cast( void** )&eglDestroySync, "eglDestroySync" );
+        lib.bindSymbol( cast( void** )&eglClientWaitSync, "eglClientWaitSync" );
+        lib.bindSymbol( cast( void** )&eglGetSyncAttrib, "eglGetSyncAttrib" );
+        lib.bindSymbol( cast( void** )&eglGetPlatformDisplay, "eglGetPlatformDisplay" );
+        lib.bindSymbol( cast( void** )&eglCreatePlatformWindowSurface, "eglCreatePlatformWindowSurface" );
+        lib.bindSymbol( cast( void** )&eglCreatePlatformPixmapSurface, "eglCreatePlatformPixmapSurface" );
+        lib.bindSymbol( cast( void** )&eglWaitSync, "eglWaitSync" );
+        GLESVersion = EGLSupport.EGL15;
+    }
+
+    trace("EGL ", major, ".", minor, " has been loaded.");
+
+    enforce(eglBindAPI(EGL_OPENGL_API) == EGL_TRUE);
+    checkError();
+
+    int[] attributes = [
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_CONFORMANT,        EGL_OPENGL_BIT,
+        EGL_RENDERABLE_TYPE,   EGL_OPENGL_BIT,
+        EGL_COLOR_BUFFER_TYPE, EGL_RGB_BUFFER,
+
+        EGL_RED_SIZE, 8,
+        EGL_GREEN_SIZE, 8,
+        EGL_BLUE_SIZE, 8,
+        EGL_ALPHA_SIZE, 8,
+        EGL_BUFFER_SIZE, 32,
+        EGL_NONE
+    ];
+
+    EGLint numConfig;
+    enforce(eglChooseConfig(eglDisplay, attributes.ptr, &eglConfig, 1, &numConfig) == EGL_TRUE);
+    checkError();
+
+    int[9] ctxAttributes = [
+        EGL_CONTEXT_MAJOR_VERSION_KHR, 3,
+        EGL_CONTEXT_MINOR_VERSION_KHR, 0,
+        EGL_NONE, EGL_NONE,
+        EGL_NONE, EGL_NONE,
+        EGL_NONE
+    ];
+
+    debug {
+        ctxAttributes[4..8] = [
+            EGL_CONTEXT_OPENGL_DEBUG, EGL_TRUE,
+            EGL_CONTEXT_FLAGS_KHR, EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR,
+        ];
+    }
+
+    eglContext = enforce(eglCreateContext(eglDisplay, eglConfig, EGL_NO_CONTEXT, ctxAttributes.ptr));
+    checkError();
+}
+
+void loadOpenGLInCurrentContext() {
+    // HACK
+    import bindbc.opengl.context;
+    alias libEGL = __traits(getMember, bindbc.opengl.context, "libEGL");
+    alias getCurrentContext = __traits(getMember, bindbc.opengl.context, "getCurrentContext");
+    alias getProcAddress = __traits(getMember, bindbc.opengl.context, "getProcAddress");
+    libEGL = typeof(libEGL)(cast(void*) 0x1); // fake libEGL as loaded
+    getCurrentContext = eglGetCurrentContext; // give our EGL symbols
+    getProcAddress = eglGetProcAddress;
+    GLSupport glVersion = loadOpenGL();
+    assert(glVersion >= GLSupport.gl30, "Cannot load OpenGL!!");
+    libEGL = typeof(libEGL).init;
 }
 
 enum EGL_PLATFORM_XCB_EXT = 0x31DC;

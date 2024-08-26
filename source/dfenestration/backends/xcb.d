@@ -122,13 +122,22 @@ class XcbBackend: Backend, VkVGRendererCompatible, NanoVegaGLRendererCompatible 
 
     version (NanoVega) {
         import dfenestration.renderers.egl;
-        mixin DefaultEGLBackend;
 
-        final EGLDisplay getPlatformDisplay() => eglGetPlatformDisplay(
-            EGL_PLATFORM_XCB_EXT,
-            cast(void*) connection,
-            [const(long)(EGL_PLATFORM_XCB_SCREEN_EXT), /+ screen +/ const(long)(screenNumber), const(long)(EGL_NONE)].ptr
-        );
+        EGLDisplay eglDisplay;
+
+        EGLConfig eglConfig;
+        EGLContext eglContext;
+
+        void loadGL() {
+            loadEGLLibrary();
+            loadBasicEGLSymbols();
+            eglDisplay = enforce(eglGetPlatformDisplay(
+                EGL_PLATFORM_XCB_EXT,
+                cast(void*) connection,
+                [const(long)(EGL_PLATFORM_XCB_SCREEN_EXT), /+ screen +/ const(long)(screenNumber), const(long)(EGL_NONE)].ptr
+            ));
+            initializeEGLForDisplay(eglDisplay, /+ out +/ eglConfig, /+ out +/ eglContext);
+        }
 
         bool loadGLLibrary() {
             return true;
@@ -188,7 +197,7 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
         }
 
         uint[2] values = [
-            0,
+            screen.black_pixel,
             XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
             XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
             XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW |
@@ -534,18 +543,7 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
 
             synchronized {
                 setAsCurrentContextGL();
-
-                // HACK
-                import bindbc.opengl.context;
-                alias libEGL = __traits(getMember, bindbc.opengl.context, "libEGL");
-                alias getCurrentContext = __traits(getMember, bindbc.opengl.context, "getCurrentContext");
-                alias getProcAddress = __traits(getMember, bindbc.opengl.context, "getProcAddress");
-                libEGL = typeof(libEGL)(cast(void*) 0x1); // fake libEGL as loaded
-                getCurrentContext = eglGetCurrentContext; // give our EGL symbols
-                getProcAddress = eglGetProcAddress;
-                GLSupport glVersion = loadOpenGL();
-                assert(glVersion >= GLSupport.gl30, "Cannot load OpenGL!!");
-                libEGL = typeof(libEGL).init;
+                loadOpenGLInCurrentContext();
             }
 
             debug {
@@ -558,9 +556,7 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
                 }
             }
 
-            // TODO: vsync
-            int vsync = 1;
-            eglSwapInterval(backend.eglDisplay, vsync).enforce();
+            eglSwapInterval(backend.eglDisplay, 1).enforce();
         }
 
         bool setAsCurrentContextGL() {

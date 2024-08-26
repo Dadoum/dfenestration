@@ -312,13 +312,22 @@ version (Wayland):
 
         version (NanoVega) {
             import dfenestration.renderers.egl;
-            mixin DefaultEGLBackend;
 
-            final EGLDisplay getPlatformDisplay() => eglGetPlatformDisplay(
-                EGL_PLATFORM_WAYLAND_EXT,
-                cast(void*) display.proxy,
-                null
-            );
+            EGLDisplay eglDisplay;
+
+            EGLConfig eglConfig;
+            EGLContext eglContext;
+
+            void loadGL() {
+                loadEGLLibrary();
+                loadBasicEGLSymbols();
+                eglDisplay = enforce(eglGetPlatformDisplay(
+                    EGL_PLATFORM_WAYLAND_EXT,
+                    cast(void*) display.proxy,
+                    null
+                ));
+                initializeEGLForDisplay(eglDisplay, /+ out +/ eglConfig, /+ out +/ eglContext);
+            }
 
             bool loadGLLibrary() {
                 try {
@@ -597,14 +606,6 @@ version (Wayland):
                 surface.commit();
                 dirty = false;
             });
-        }
-
-        void onRedraw(WlCallback callback, uint callbackData) {
-            callback.destroy();
-
-            renderer.draw(this);
-            surface.commit();
-            dirty = false;
         }
 
         union _WaylandMousePos {
@@ -1278,18 +1279,7 @@ version (Wayland):
 
                 synchronized {
                     setAsCurrentContextGL();
-
-                    // HACK
-                    import bindbc.opengl.context;
-                    alias libEGL = __traits(getMember, bindbc.opengl.context, "libEGL");
-                    alias getCurrentContext = __traits(getMember, bindbc.opengl.context, "getCurrentContext");
-                    alias getProcAddress = __traits(getMember, bindbc.opengl.context, "getProcAddress");
-                    libEGL = typeof(libEGL)(cast(void*) 0x1); // fake libEGL as loaded
-                    getCurrentContext = eglGetCurrentContext; // give our EGL symbols
-                    getProcAddress = eglGetProcAddress;
-                    GLSupport glVersion = loadOpenGL();
-                    assert(glVersion >= GLSupport.gl30, "Cannot load OpenGL!!");
-                    libEGL = typeof(libEGL).init;
+                    loadOpenGLInCurrentContext();
                 }
 
                 eglSwapInterval(backend.eglDisplay, 1);
