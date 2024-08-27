@@ -55,7 +55,10 @@ Screenshot of that example (as of 2024-07-31, Wayland without server decorations
 _and explaining my design choices_
 
 An all-purpose GUI framework written in D. Like GTK or Qt. \
-But not an application framework.
+But not an application framework, so it won't manage multiple instances and an app
+and wrap cross-process communication.
+
+Still, I want it to be suitable to make a full desktop environment!
 
 To be more precise, I distinguish the GUI part from the app part.
 

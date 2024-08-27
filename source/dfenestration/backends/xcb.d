@@ -62,8 +62,76 @@ class XcbBackend: Backend, VkVGRendererCompatible, NanoVegaGLRendererCompatible 
 
             switch (event.response_type) {
                 case XCB_EXPOSE:
-                    auto event_expose = cast(xcb_expose_event_t*) event;
-                    xcbWindows[event_expose.window].scheduleRedraw();
+                    // auto event_expose = cast(xcb_expose_event_t*) event;
+                    // xcbWindows[event_expose.window].dWindow.invalidate();
+                    break;
+                case XCB_CONFIGURE_NOTIFY:
+                    xcb_configure_notify_event_t* event_configure = cast(xcb_configure_notify_event_t*) event;
+                    auto window = xcbWindows[event_configure.window];
+
+                    auto newSize = Size(event_configure.width, event_configure.height);
+
+                    if (newSize != window.size()) {
+                        window.onResize(newSize);
+                    }
+                    break;
+                case XCB_BUTTON_PRESS:
+                    auto evt = cast(xcb_button_press_event_t*) event;
+                    auto window = xcbWindows[evt.event];
+                    auto location = Point(evt.event_x, evt.event_y);
+                    auto detail = evt.detail;
+                    if (detail == 4 || detail == 5 || detail == 6 || detail == 7) {
+                        warning("scroll not handled.");
+                        break;
+                    }
+                    auto button = detail.x11ToMouseButton();
+                    window.dWindow.onClickStart(location, button);
+                    break;
+                case XCB_BUTTON_RELEASE:
+                    auto evt = cast(xcb_button_release_event_t*) event;
+                    auto window = xcbWindows[evt.event];
+                    auto location = Point(evt.event_x, evt.event_y);
+                    auto detail = evt.detail;
+                    if (detail == 4 || detail == 5 || detail == 6 || detail == 7) {
+                        warning("scroll not handled.");
+                        break;
+                    }
+                    auto button = detail.x11ToMouseButton();
+                    window.dWindow.onClickEnd(location, button);
+                    break;
+                case XCB_FOCUS_IN:
+                    auto event_focus_in = cast(xcb_focus_in_event_t*) event;
+                    auto window = xcbWindows[event_focus_in.event];
+                    if (!window._focused) {
+                        window._focused = true;
+                        window.dWindow.onFocusedChange(true);
+                    }
+                    break;
+                case XCB_FOCUS_OUT:
+                    auto event_focus_out = cast(xcb_focus_out_event_t*) event;
+                    auto window = xcbWindows[event_focus_out.event];
+                    if (window._focused) {
+                        window._focused = false;
+                        window.dWindow.onFocusedChange(false);
+                    }
+                    break;
+                case XCB_ENTER_NOTIFY:
+                    auto event_enter_notify = cast(xcb_enter_notify_event_t*) event;
+                    auto window = xcbWindows[event_enter_notify.event];
+                    Point hoverLocation = Point(event_enter_notify.event_x, event_enter_notify.event_y);
+                    window.dWindow.onHoverStart(hoverLocation);
+                    break;
+                case XCB_MOTION_NOTIFY:
+                    auto event_motion_notify = cast(xcb_motion_notify_event_t*) event;
+                    auto window = xcbWindows[event_motion_notify.event];
+                    Point hoverLocation = Point(event_motion_notify.event_x, event_motion_notify.event_y);
+                    window.dWindow.onHover(hoverLocation);
+                    break;
+                case XCB_LEAVE_NOTIFY:
+                    auto event_leave_notify = cast(xcb_leave_notify_event_t*) event;
+                    auto window = xcbWindows[event_leave_notify.event];
+                    Point hoverLocation = Point(event_leave_notify.event_x, event_leave_notify.event_y);
+                    window.dWindow.onHoverEnd(hoverLocation);
                     break;
                 case XCB_CLIENT_MESSAGE | 1 << 7:
                     auto event_cm = cast(xcb_client_message_event_t*) event;
@@ -295,8 +363,8 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
             window,
             backend.atom!propertyName,
             type,
-            format,
-            1,
+            format > 32 ? 32 : format,
+            format > 32 ? T.sizeof * 8 / 32 : 1,
             &data
         ).xcbEnforce(backend.connection);
         xcb_flush(backend.connection);
@@ -331,18 +399,7 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
     }
 
     void invalidate() {
-        xcb_expose_event_t invalidate_event;
-        invalidate_event.window = window;
-        invalidate_event.response_type = XCB_EXPOSE;
-        invalidate_event.x = 0;
-        invalidate_event.y = 0;
-        Size size = size();
-        assert(size.width <= ushort.max && size.height <= ushort.max, "Window too big for X11");
-        invalidate_event.width = cast(ushort) size.width;
-        invalidate_event.height = cast(ushort) size.height;
-        xcb_send_event_checked(backend.connection, false, window, XCB_EVENT_MASK_EXPOSURE, cast(char*) &invalidate_event)
-            .xcbEnforce(backend.connection);
-        xcb_flush(backend.connection);
+        scheduleRedraw();
     }
 
     void role(Role role) {
@@ -376,31 +433,49 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
             .xcbEnforce(backend.connection);
     }
 
+    Size _size;
     Size size() {
-        auto reply = xcbEnforce!xcb_get_geometry_reply(backend.connection, xcb_get_geometry(backend.connection, window));
-        scope(exit) free(reply);
-        return Size(cast(uint) reply.width, cast(uint) reply.height);
+        return _size;
     }
     void size(Size value) {
         const(uint)[2] array = [value.tupleof];
         xcb_configure_window_checked(backend.connection, window, XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, array.ptr)
-            .xcbEnforce(backend.connection);
+        .xcbEnforce(backend.connection);
+        onResize(value);
+    }
+    void onResize(Size newSize) {
+        _size = newSize;
+        dWindow.onResize(newSize);
     }
 
+    Size _minSize;
     Size minimumSize() {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
-        return typeof(return).init;
+        return _minSize;
     }
     void minimumSize(Size value) {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+        _minSize = value;
+        WMSizeHints hints;
+        hints.flags = WMSizeHintsFlag.P_MIN_SIZE;
+        hints.min_width = value.width;
+        hints.min_height = value.height;
+        xcbProperty!"WM_NORMAL_HINTS" = hints;
     }
 
+    Size _maxSize = Size(uint.max, uint.max);
     Size maximumSize() {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
-        return typeof(return).init;
+        return _maxSize;
     }
     void maximumSize(Size value) {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+        if (size == Size.zero) {
+            value.width = uint.max;
+            value.height = uint.max;
+        }
+        _maxSize = value;
+        WMSizeHints hints;
+        hints.flags = WMSizeHintsFlag.P_MAX_SIZE;
+        hints.max_width = value.width;
+        hints.max_height = value.height;
+        xcbProperty!"WM_NORMAL_HINTS" = hints;
     }
 
     Size canvasSize() {
@@ -455,9 +530,9 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
         xcb_configure_window_checked(backend.connection, window, XCB_CONFIG_WINDOW_STACK_MODE, &value)
             .xcbEnforce(backend.connection);
     }
+    bool _focused = false;
     bool focused() {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
-        return typeof(return).init;
+        return _focused;
     }
 
     bool maximized() {
@@ -465,7 +540,14 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
         return typeof(return).init;
     }
     void maximized(bool value) {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+        uint[5] event = [
+            true,
+            backend.atom!"_NET_WM_STATE_MAXIMIZED_VERT",
+            backend.atom!"_NET_WM_STATE_MAXIMIZED_HORZ",
+            1,
+            0
+        ];
+        sendMessageToRootWindow(backend.atom!"_NET_WM_STATE", event);
     }
 
     double opacity() {
@@ -705,8 +787,63 @@ template atomNameForType(T) {
         enum atomNameForType = "ATOM";
     else static if (is(T == xcb_window_t))
         enum atomNameForType = "WINDOW";
+    else static if (is(T == WMSizeHints))
+        enum atomNameForType = "WM_SIZE_HINTS";
     else static if (isIntegral!T)
         enum atomNameForType = "CARDINAL";
     else
         static assert(false, "Please specify atom type manually (type for " ~ T.stringof ~ " is unknown).");
+}
+
+struct WMSizeHints
+{
+    uint flags;
+    int  x, y;
+    int  width, height;
+    int  min_width, min_height;
+    int  max_width, max_height;
+    int  width_inc, height_inc;
+    int  min_aspect_num, min_aspect_den;
+    int  max_aspect_num, max_aspect_den;
+    int  base_width, base_height;
+    uint win_gravity;
+}
+
+enum WMSizeHintsFlag
+{
+    US_POSITION   = 1U << 0,
+    US_SIZE       = 1U << 1,
+    P_POSITION    = 1U << 2,
+    P_SIZE        = 1U << 3,
+    P_MIN_SIZE    = 1U << 4,
+    P_MAX_SIZE    = 1U << 5,
+    P_RESIZE_INC  = 1U << 6,
+    P_ASPECT      = 1U << 7,
+    BASE_SIZE     = 1U << 8,
+    P_WIN_GRAVITY = 1U << 9
+}
+
+MouseButton x11ToMouseButton(ubyte button) {
+    MouseButton mouseButton = void;
+    switch (button) {
+        case XCB_BUTTON_INDEX_1:
+            mouseButton = MouseButton.left;
+            break;
+        case XCB_BUTTON_INDEX_2:
+            mouseButton = MouseButton.middle; // the doc is wrong
+            break;
+        case XCB_BUTTON_INDEX_3:
+            mouseButton = MouseButton.right; // the doc is wrong
+            break;
+        case 8:
+            mouseButton = MouseButton.back;
+            break;
+        case 9:
+            mouseButton = MouseButton.forward;
+            break;
+        default:
+            mouseButton = MouseButton.unknown;
+            break;
+    }
+    return mouseButton;
 }
