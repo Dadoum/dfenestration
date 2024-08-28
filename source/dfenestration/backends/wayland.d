@@ -512,10 +512,11 @@ version (Wayland):
             } // else if (auto popup = xdgWindow.popup) {
             //     // popup.onConfigure = (pop)
             // }
+            configureMaximized();
         }
 
         void reconfigure() {
-            _maximized = false;
+            configureMaximized();
             configureDecorated();
             configureMinimumSize();
             configureMaximumSize();
@@ -530,7 +531,7 @@ version (Wayland):
         }
 
         void onToplevelClose(XdgToplevel tl) {
-            close();
+            window.onCloseRequest();
         }
 
         void onToplevelConfigure(XdgToplevel tl, int width, int height, wl_array* statesC) {
@@ -1155,24 +1156,32 @@ version (Wayland):
             }
         }
 
-        bool _maximized;
+        bool _maximized = false;
         bool maximized() {
             return _maximized;
         }
         void maximized(bool value) {
+            info(_maximized, " <- ", value);
+            _maximized = value;
+            configureMaximized();
+            if (value != _maximized) {
+                window.onMaximizeChange();
+            }
+        }
+        void configureMaximized() {
             if (auto toplevel = xdgWindow.toplevel) {
-                if (value) toplevel.setMaximized();
+                if (_maximized) toplevel.setMaximized();
                 else toplevel.unsetMaximized();
             }
-            _maximized = value;
-            window.onMaximizeChange();
         }
 
         double _opacity = 1.;
         double opacity() {
+            warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
             return _opacity;
         }
         void opacity(double value) {
+            warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
             _opacity = value;
         }
 
@@ -1184,10 +1193,6 @@ version (Wayland):
             _scaling = value;
             configureSize();
             resetCursorThemeManager();
-        }
-
-        void close() {
-            window.onCloseRequest();
         }
 
         void moveDrag() {

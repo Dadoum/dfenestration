@@ -8,7 +8,7 @@ import dfenestration.renderers.context;
 import vkvg;
 
 class VkVGContext: Context {
-    vkvg_context_t* handle;
+    VkvgContext handle;
 
     this(Surface surface) {
         handle = vkvg_create(surface.handle);

@@ -6,7 +6,7 @@ import erupted;
 import vkvg;
 
 class Surface {
-    vkvg_surface_t* handle;
+    VkvgSurface handle;
     bool owned = false;
 
     this(Device vkvgDevice, uint width, uint height) {

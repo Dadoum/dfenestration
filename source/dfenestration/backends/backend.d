@@ -184,8 +184,6 @@ interface BackendWindow {
     double scaling();
     void scaling(double value);
 
-    void close();
-
     void moveDrag();
     void resizeDrag(ResizeEdge edge);
 

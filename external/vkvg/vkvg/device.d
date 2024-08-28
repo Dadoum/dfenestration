@@ -6,7 +6,7 @@ import erupted;
 import vkvg;
 
 class Device/+(bool hardwareAccelerated)+/ {
-    vkvg_device_t* handle;
+    VkvgDevice handle;
     private bool owned = false;
 
     this(VkInstance inst, VkPhysicalDevice phy, VkDevice vkdev, uint qFamIdx, uint qIndex) {

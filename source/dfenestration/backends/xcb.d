@@ -24,7 +24,7 @@ import dfenestration.renderers.context;
 import dfenestration.renderers.renderer;
 import dfenestration.widgets.window;
 
-class XcbBackend: Backend, VkVGRendererCompatible, NanoVegaGLRendererCompatible {
+final class XcbBackend: Backend, VkVGRendererCompatible, NanoVegaGLRendererCompatible {
     xcb_connection_t* connection;
     int screenNumber;
     xcb_screen_t* screen;
@@ -58,12 +58,11 @@ class XcbBackend: Backend, VkVGRendererCompatible, NanoVegaGLRendererCompatible 
                 error("X11 error: ", (cast(xcb_generic_error_t*) event).error_code.x11ErrorDescription());
                 continue;
             }
-            // info("event time!");
 
             switch (event.response_type) {
                 case XCB_EXPOSE:
-                    // auto event_expose = cast(xcb_expose_event_t*) event;
-                    // xcbWindows[event_expose.window].dWindow.invalidate();
+                    auto event_expose = cast(xcb_expose_event_t*) event;
+                    xcbWindows[event_expose.window].dWindow.invalidate();
                     break;
                 case XCB_CONFIGURE_NOTIFY:
                     xcb_configure_notify_event_t* event_configure = cast(xcb_configure_notify_event_t*) event;
@@ -238,7 +237,7 @@ version (VkVG) {
     mixin Platform_Extensions!USE_PLATFORM_XCB_KHR vulkanXcb;
 }
 
-class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
+final class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
     Window dWindow;
     XcbBackend backend;
 
@@ -290,6 +289,11 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
         backend.renderer.initializeWindow(this);
     }
 
+    ~this() {
+        auto connection = backend.connection;
+        xcb_destroy_window_checked(connection, window).xcbEnforce(connection);
+    }
+
     T xcbProperty(string propertyName, T: U[], U)(xcb_atom_t type = 0) {
         if (type == 0) {
             type = backend.atom!(atomNameForType!T);
@@ -338,6 +342,7 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
         if (type == 0) {
             type = backend.atom!(atomNameForType!T);
         }
+        ubyte format = U.sizeof * 8;
 
         xcb_change_property_checked(
             backend.connection,
@@ -345,7 +350,7 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
             window,
             backend.atom!propertyName,
             type,
-            U.sizeof * 8,
+            format,
             cast(uint) data.length,
             data.ptr
         ).xcbEnforce(backend.connection);
@@ -466,9 +471,9 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
         return _maxSize;
     }
     void maximumSize(Size value) {
-        if (size == Size.zero) {
-            value.width = uint.max;
-            value.height = uint.max;
+        if (value == Size.zero) {
+            value.width = int.max;
+            value.height = int.max;
         }
         _maxSize = value;
         WMSizeHints hints;
@@ -482,20 +487,48 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
         return size();
     }
 
+    bool _resizable = true;
     bool resizable() {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
-        return typeof(return).init;
+        return _resizable;
     }
     void resizable(bool value) {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+        if (_resizable && !value) {
+            WMSizeHints hints;
+            hints.flags = WMSizeHintsFlag.P_MIN_SIZE | WMSizeHintsFlag.P_MAX_SIZE;
+            hints.min_width = _size.width;
+            hints.min_height = _size.height;
+            hints.max_width = _size.width;
+            hints.max_height = _size.height;
+            xcbProperty!"WM_NORMAL_HINTS" = hints;
+            _resizable = false;
+        } else if (!_resizable && value) {
+            WMSizeHints hints;
+            hints.flags = WMSizeHintsFlag.P_MIN_SIZE | WMSizeHintsFlag.P_MAX_SIZE;
+            hints.min_width = _minSize.width;
+            hints.min_height = _minSize.height;
+            hints.max_width = _maxSize.width;
+            hints.max_height = _maxSize.height;
+            xcbProperty!"WM_NORMAL_HINTS" = hints;
+            _resizable = true;
+        }
     }
 
+    bool _decorated = true;
     bool decorated() {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
-        return typeof(return).init;
+        return _decorated;
     }
     void decorated(bool value) {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+        uint[] hints = [
+            /+ flags +/ 2, // I think 2 stands for (1 << 1), the request only changes the decoration mode.
+            /+ functions +/ 0,
+            /+ decorations +/ value ? 1 : 0,
+            /+ input_mode +/ 0,
+            /+ status +/ 0,
+        ];
+        xcbProperty!"_MOTIF_WM_HINTS"(hints, backend.atom!"_MOTIF_WM_HINTS");
+        _decorated = value;
     }
 
     XcbWindow _parent;
@@ -509,6 +542,7 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
     void show() {
         xcb_map_window_checked(backend.connection, window)
             .xcbEnforce(backend.connection);
+        maximized = _maximized;
     }
     void hide() {
         xcb_unmap_window_checked(backend.connection, window)
@@ -535,19 +569,20 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
         return _focused;
     }
 
+    bool _maximized = false;
     bool maximized() {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
-        return typeof(return).init;
+        return _maximized;
     }
     void maximized(bool value) {
         uint[5] event = [
-            true,
+            value,
             backend.atom!"_NET_WM_STATE_MAXIMIZED_VERT",
             backend.atom!"_NET_WM_STATE_MAXIMIZED_HORZ",
             1,
             0
         ];
         sendMessageToRootWindow(backend.atom!"_NET_WM_STATE", event);
+        _maximized = value;
     }
 
     double opacity() {
@@ -566,27 +601,72 @@ class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
     }
 
-    void close() {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+    void moveResize(uint flag) {
+        xcb_query_pointer_reply_t* pointer = queryPointer();
+        scope(exit) free(pointer);
+
+        uint[5] event = [
+            pointer.root_x,
+            pointer.root_y,
+            flag,
+            XCB_BUTTON_INDEX_ANY,
+            0
+        ];
+        sendMessageToRootWindow(backend.atom!"_NET_WM_MOVERESIZE", event);
     }
 
     void moveDrag() {
-        // uint[5] event = [
-        //     XCB_ICCCM_WM_STATE_ICONIC,
-        //     0,
-        //     0,
-        //     0,
-        //     0
-        // ];
-        // sendMessageToRootWindow(backend.atom!"_NET_WM_MOVERESIZE", event);
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+        moveResize(8);
     }
     void resizeDrag(ResizeEdge edge) {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+        uint flag;
+        final switch (edge) {
+            case ResizeEdge.left:
+                flag = 7;
+                break;
+            case ResizeEdge.right:
+                flag = 3;
+                break;
+            case ResizeEdge.top:
+                flag = 1;
+                break;
+            case ResizeEdge.bottom:
+                flag = 5;
+                break;
+            case ResizeEdge.topLeft:
+                flag = 0;
+                break;
+            case ResizeEdge.topRight:
+                flag = 2;
+                break;
+            case ResizeEdge.bottomLeft:
+                flag = 6;
+                break;
+            case ResizeEdge.bottomRight:
+                flag = 4;
+                break;
+        }
+        moveResize(flag);
     }
 
+    xcb_query_pointer_reply_t* queryPointer()
+        => xcbEnforce!xcb_query_pointer_reply(
+            backend.connection,
+            xcb_query_pointer(backend.connection, backend.screen.root)
+        );
+
     void showWindowControlMenu(Point location) {
-        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+        xcb_query_pointer_reply_t* pointer = queryPointer();
+        scope(exit) free(pointer);
+
+        int[5] data = [
+            1,
+            pointer.root_x,
+            pointer.root_y,
+            0,
+            0,
+        ];
+        sendClientMessage(backend.screen.root, backend.atom!"_GTK_SHOW_WINDOW_MENU", data);
     }
 
     bool redrawScheduled = false;
@@ -789,6 +869,8 @@ template atomNameForType(T) {
         enum atomNameForType = "WINDOW";
     else static if (is(T == WMSizeHints))
         enum atomNameForType = "WM_SIZE_HINTS";
+    else static if (is(T == U[], U: int))
+        enum atomNameForType = "XCB_ATOM_INTEGER";
     else static if (isIntegral!T)
         enum atomNameForType = "CARDINAL";
     else

@@ -302,7 +302,7 @@ class Window: Container!Widget {
      + Close the window.
      + It will call onCloseRequest.
      +/
-    void close() { backendWindow.close(); }
+    void close() { onCloseRequest(); }
 
     /++
      + Request window to be moved from the current pointer location. May be ignored.
