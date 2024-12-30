@@ -13,9 +13,9 @@ import dfenestration.widgets.window;
  +/
 abstract class Widget {
     private struct _ {
-        /// In the internal widget tree
+        /// Real parent in the internal widget tree
         @Trigger!(Widget.cacheWindow) ContainerBase parent;
-        /// In the apparent widget tree
+        /// Parent data for the apparent widget parent
         ContainerData parentData;
         /// Space given to the widget inside the parent container allocation.
         @TriggerRedraw Rectangle allocation;
@@ -23,6 +23,8 @@ abstract class Widget {
         CursorType cursor = CursorType.default_;
     }
     mixin State!_;
+
+    size_t containerIndex = -1;
 
     void draw(Context context, Rectangle rectangle) {}
 
@@ -44,8 +46,6 @@ abstract class Widget {
     bool onTouchStart(Point location) { return onClickStart(location, MouseButton.left); }
     bool onTouchMove(Point location) { return onHover(location); }
     bool onTouchEnd(Point location) { return onClickEnd(location, MouseButton.left); }
-
-    void onPress(Point location, MouseButton button) { }
 
     /++
      + Pinch touchpad gesture (or touch screen)
@@ -70,6 +70,57 @@ abstract class Widget {
 
     bool onScroll(Point location) {
         return false;
+    }
+
+    /++
+     + Called when the focus is moved forward, and that the widget could be focused (or is).
+     + If it takes focus, the next nextFocus/previousFocus call will also be forwarded to it until it releases the focus.
+     + Call unfocus if needed.
+     + Returns: Whether the widget takes/retains focus.
+     + [Default behaviour: call onFocus and see if the focus is desired there]
+     +/
+    bool nextFocus() {
+        return onFocusRequest();
+    }
+
+    /++
+     + Called when the focus is moved backward, and that the widget could be focused (or is).
+     + If it takes focus, the next nextFocus/previousFocus call will also be forwarded to it until it releases the focus.
+     + Don't call unfocus, it will be done by the container.
+     + Returns: Whether the widget takes/retains focus.
+     + [Default behaviour: call onFocus and see if the focus is desired there]
+     +/
+    bool previousFocus() {
+        return onFocusRequest();
+    }
+
+    /++
+     + Called when it's your turn to get focused, and decide whether you should get focused or not.
+     + It should not call focus or unfocus, which are forcing that decision.
+     + Returns: Whether the widget takes/retains focus.
+     + [Default behaviour: call onFocus and see if the focus is desired there]
+     +/
+    bool onFocusRequest() {
+        return false;
+    }
+
+    /++
+     + Steal focus
+     +/
+    void focus() {
+        auto focusedWidget = window.focusedWidget;
+        if (focusedWidget == this || focusedWidget is null) {
+            return;
+        }
+        focusedWidget.unfocus();
+        window.focusedWidget = this;
+    }
+
+    /++
+     + Release focus
+     +/
+    void unfocus() {
+        parent.unfocus();
     }
 
     /++
@@ -131,6 +182,7 @@ abstract class Widget {
     /++
      + Configure specific fields for a given container type.
      +/
+    pragma(inline, true)
     R layoutProperties(T: ContainerBase, this R)(DataFor!T containerData) {
         parentData = containerData;
         return cast(R) this;
@@ -139,13 +191,13 @@ abstract class Widget {
     /++
      + Configure specific fields for a given container type.
      +/
+    pragma(inline, true)
     R layoutProperties(T: ContainerBase, this R)(typeof(DataFor!T.tupleof)) { // TODO: give the right name to params
         auto data = new DataFor!T();
         static foreach (idx, field; __traits(parameters)) {
             __traits(child, data, DataFor!T.tupleof[idx]) = field;
         }
-        parentData = data;
-        return cast(R) this;
+        return layoutProperties!(T, R)(data);
     }
 
     final void scheduleWindowSizeAllocation() {

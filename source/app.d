@@ -24,7 +24,8 @@ int main() {
 						.size(Size(200, 200))
 						.naturalSize(Size(300, 300)),
 
-					new class Button { override void onPress(Point, MouseButton) { info("Click registered!"); } }
+					new Button()
+						.pressed((_) => info("Click registered!"))
 					[
 						new Text(text: "Hello!!")
 					]
@@ -33,11 +34,11 @@ int main() {
 		];
 
 	// force client-side decorations
-	// import dfenestration.backends.wayland;
-	// if (auto wayland = cast(WaylandBackend) window.backend) {
-	// 	wayland.xdgDecorationManager = null;
-	// 	wayland.kdeDecorationManager = null;
-	// }
+	import dfenestration.backends.wayland;
+	if (auto wayland = cast(WaylandBackend) window.backend) {
+		wayland.xdgDecorationManager = null;
+		wayland.kdeDecorationManager = null;
+	}
 
 	return window.run();
 }

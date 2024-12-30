@@ -679,8 +679,6 @@ version (VkVG) {
 
             {
                 scope context = new VkVGContext(vulkanProps.vkvgSurface);
-                auto scaling = window.scaling();
-                context.scale(scaling, scaling);
                 window.paint(context);
             }
 

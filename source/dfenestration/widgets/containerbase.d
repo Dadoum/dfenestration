@@ -296,6 +296,54 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
             }
         }
     }
+
+    long index = 0;
+    override bool nextFocus() {
+        if (index == -1) {
+            index = 0;
+        }
+
+        Widget focusedWidget;
+        do {
+            if (index >= allocations.length) {
+                index = -1;
+                return false;
+            }
+
+            focusedWidget = allocations[index].widget;
+            index += 1;
+        } while(!focusedWidget.nextFocus());
+
+        focusedWidget.focus();
+
+        return true;
+    }
+
+    override bool previousFocus() {
+        if (index == -1) {
+            index = allocations.length - 1;
+        }
+
+        Widget focusedWidget;
+        do {
+            if (index < 0) {
+                index = -1;
+                return false;
+            }
+
+            focusedWidget = allocations[index].widget;
+            index -= 1;
+        } while(!focusedWidget.previousFocus());
+
+        focusedWidget.focus();
+
+        return true;
+    }
+
+    override void unfocus() {
+        index = -1;
+        super.unfocus();
+    }
 }
 
 class ContainerData {

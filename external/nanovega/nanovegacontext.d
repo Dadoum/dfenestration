@@ -117,7 +117,7 @@ class NanoVegaContext: Context {
 
     void dropShadow(float x, float y, float w, float h, float radius, float feather) {
         context.save();
-        context.reset();
+        // context.reset();
         // context.beginPath();
         context.rect(0, 0, context.width, context.height);
         context.fillPaint = context.boxGradient(x, y, w, h, radius, feather, color, nvgRGBA(256, 0, 0, 0));

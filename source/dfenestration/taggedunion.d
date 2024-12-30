@@ -45,7 +45,7 @@ struct TaggedUnion(Value) {
             static foreach (element; elements) {
                 static if (!is(typeof(__traits(getMember, Value, element)) == None)) {
                     case __traits(getMember, Tag, element):
-                        return "(" ~ __traits(child, value, element).to!string() ~ ")";
+                        return "(" ~ __traits(getMember, value, element).to!string() ~ ")";
                 }
             }
             static foreach (element; elements) {

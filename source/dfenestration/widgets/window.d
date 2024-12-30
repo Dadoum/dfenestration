@@ -111,6 +111,11 @@ class Window: Container!Widget {
         return true;
     }
 
+    Widget focusedWidget = null;
+    override void unfocus() {
+        focusedWidget = null;
+    }
+
     bool isPrimaryWindow;
     /++
      + Method called when the user asks to close the window.
@@ -208,8 +213,22 @@ class Window: Container!Widget {
      + Size of window's content.
      + Default: Size(600, 400)
      +/
-    @StateGetter Size size() { return backendWindow.size(); }
-    @StateSetter Window size(Size value) { backendWindow.size(value); return this; }
+    @StateGetter Size size() {
+        auto size = backendWindow.size;
+        if (content == frame) {
+            size.width -= frame.additionalWidth;
+            size.height -= frame.additionalHeight;
+        }
+        return size;
+    }
+    @StateSetter Window size(Size value) {
+        if (content == frame) {
+            value.width += frame.additionalWidth;
+            value.height += frame.additionalHeight;
+        }
+        backendWindow.size(value);
+        return this;
+    }
     void onResize(Size size) {
         allocation = Rectangle(Point.zero, size);
     }
@@ -222,16 +241,43 @@ class Window: Container!Widget {
      +/
     @StateGetter Size minimumSize() {
         auto userSize = userDefinedMinimumSize;
-        return Size(max(layoutSize.width, userSize.width), max(layoutSize.height, userSize.height));
+        auto value = Size(max(layoutSize.width, userSize.width), max(layoutSize.height, userSize.height));
+        if (content == frame) {
+            value.width -= frame.additionalWidth;
+            value.height -= frame.additionalHeight;
+        }
+        return value;
     }
-    @StateSetter Window minimumSize(Size value) { userDefinedMinimumSize = value; backendWindow.minimumSize(minimumSize); return this; }
+    @StateSetter Window minimumSize(Size value) {
+        if (content == frame) {
+            value.width += frame.additionalWidth;
+            value.height += frame.additionalHeight;
+        }
+        userDefinedMinimumSize = value;
+        backendWindow.minimumSize(minimumSize);
+        return this;
+    }
 
     /++
      + Maximum size of window's content. May be bypassed if widgets can't fit.
      + Default: Size(0, 0)
      +/
-    @StateGetter Size maximumSize() { return backendWindow.maximumSize(); }
-    @StateSetter Window maximumSize(Size value) { backendWindow.maximumSize(value); return this; }
+    @StateGetter Size maximumSize() {
+        auto value = backendWindow.maximumSize();
+        if (content == frame) {
+            value.width -= frame.additionalWidth;
+            value.height -= frame.additionalHeight;
+        }
+        return value;
+    }
+    @StateSetter Window maximumSize(Size value) {
+        if (content == frame) {
+            value.width += frame.additionalWidth;
+            value.height += frame.additionalHeight;
+        }
+        backendWindow.maximumSize(value);
+        return this;
+    }
 
     /++
      + Whether the window can be resized by the user.
@@ -281,7 +327,9 @@ class Window: Container!Widget {
      +/
     @StateGetter bool maximized() { return backendWindow.maximized(); }
     @StateSetter Window maximized(bool value) { backendWindow.maximized(value); return this; }
-    void onMaximizeChange() {}
+    void onMaximizeChange() {
+        info("Maximize change");
+    }
 
     /++
      + Window opacity (if supported).

@@ -1,7 +1,7 @@
 module dfenestration.widgets.windowbutton;
 
-import dfenestration.widgets.button;
+import dfenestration.widgets.buttonbase;
 
-class WindowButton: Button {
+class WindowButton: ButtonBase {
 
 }

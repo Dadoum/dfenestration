@@ -1,7 +1,7 @@
 module dfenestration.widgets.windowframe;
 
 import dfenestration.widgets.bin;
-import dfenestration.widgets.button;
+import dfenestration.widgets.buttonbase;
 import dfenestration.widgets.column;
 import dfenestration.widgets.container;
 import dfenestration.widgets.row;
@@ -19,6 +19,9 @@ class WindowFrame: Bin {
     Text titleText;
     Bin contentBin;
 
+    uint additionalWidth;
+    uint additionalHeight;
+
     this() {
         import dfenestration.widgets.test;
 
@@ -29,15 +32,15 @@ class WindowFrame: Bin {
                     // TODO: use EllipsisText
                     titleText = new Text("DFENESTRATION ERROR - SET THE TITLE FIRST").layoutProperties!Row(/+ expand +/ true),
                     // new Spacer().layoutProperties!Row(/+ expand +/ true),
-                    new class Button { override void onPress(Point location, MouseButton button) => window.minimize(); } [
+                    new class ButtonBase { override void onPress(Point location, MouseButton button) => window.minimize(); } [
                         new Test()
                             .size(Size(24, 24))
                     ],
-                    new class Button { override void onPress(Point location, MouseButton button) { window.maximized = !window.maximized; } } [
+                    new class ButtonBase { override void onPress(Point location, MouseButton button) { window.maximized = !window.maximized; } } [
                         new Test()
                             .size(Size(24, 24))
                     ],
-                    new class Button { override void onPress(Point location, MouseButton button) => window.close(); } [
+                    new class ButtonBase { override void onPress(Point location, MouseButton button) => window.close(); } [
                         new Test()
                             .size(Size(24, 24))
                     ]
@@ -47,6 +50,9 @@ class WindowFrame: Bin {
                 nullWidget
             ]
         ];
+        uint _, __;
+        preferredSize(_, additionalWidth, __, additionalHeight);
+
     }
 
     @StateGetter

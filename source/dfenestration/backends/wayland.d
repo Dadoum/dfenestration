@@ -17,12 +17,14 @@ version (Wayland):
     import wayland.cursor;
     import wayland.egl;
     import wayland.native.util;
+    import wayland.util;
 
     import derelict.util.exception;
 
     import cursorshape;
     import fractionalscale;
     import kdedecoration;
+    import viewporter;
     import xdgactivation;
     import xdgdecoration;
     import xdgshell;
@@ -39,12 +41,20 @@ version (Wayland):
     import dfenestration.widgets.window;
 
     final class WaylandBackend: Backend, VkVGRendererCompatible, NanoVegaGLRendererCompatible {
-        alias RequiredProtocols = AliasSeq!(WlCompositor, WlOutput, WlSeat, WlSubcompositor, XdgWmBase);
+        alias RequiredProtocols =
+            AliasSeq!(
+                WlCompositor,
+                WlOutput,
+                WlSeat,
+                WlSubcompositor,
+                XdgWmBase
+            );
         alias SupportedProtocols = AliasSeq!(RequiredProtocols,
             WlShm,
             OrgKdeKwinServerDecorationManager,
             WpCursorShapeManagerV1,
             WpFractionalScaleManagerV1,
+            WpViewporter,
             XdgActivationV1,
             ZxdgDecorationManagerV1
         );
@@ -62,6 +72,7 @@ version (Wayland):
         alias output = wlObject!WlOutput;
         alias seat = wlObject!WlSeat;
         alias subcompositor = wlObject!WlSubcompositor;
+        alias viewporter = wlObject!WpViewporter;
         alias windowManager = wlObject!XdgWmBase;
 
         alias activation = wlObject!XdgActivationV1;
@@ -100,8 +111,8 @@ version (Wayland):
             registry.onGlobal = (WlRegistry reg, uint id, string iface, uint ver) {
                 // trace(iface, " is available.");
                 static foreach (WlInterface; SupportedProtocols) {
-                    if (iface == WlInterface.iface.name) {
-                        wlObject!WlInterface = cast(WlInterface) reg.bind(id, WlInterface.iface, 1);
+                    if (iface == WlInterface.iface.name && ver >= WlInterface.ver) {
+                        wlObject!WlInterface = cast(WlInterface) reg.bind(id, WlInterface.iface, WlInterface.ver);
                         return;
                     }
                 }
@@ -368,8 +379,6 @@ version (Wayland):
         mixin Platform_Extensions!USE_PLATFORM_WAYLAND_KHR vulkanWayland;
     }
 
-    enum resizeMarginSize = 16;
-
     enum WaylandMouseButton: uint {
         left = 0x110,
         right = 0x111,
@@ -406,6 +415,7 @@ version (Wayland):
 
         WaylandDecoration decoration = WaylandDecoration.none;
         WpFractionalScaleV1 fractionalScale;
+        WpViewport viewport;
 
         WaylandCursorThemeManager cursorThemeManager = void;
 
@@ -490,6 +500,10 @@ version (Wayland):
                 warning("Cannot use system decorations.");
             }
 
+            if (auto viewporter = backend.viewporter) {
+                viewport = viewporter.getViewport(surface);
+            }
+
             if (auto manager = backend.fractionalScaleManager) {
                 fractionalScale = manager.getFractionalScale(surface);
                 fractionalScale.onPreferredScale = (_, s) {
@@ -501,11 +515,11 @@ version (Wayland):
             }
 
             renderer.initializeWindow(this);
-            reconfigure();
-
             renderer.draw(this);
 
             backend.display.roundtrip();
+
+            reconfigure();
 
             if (auto toplevel = xdgWindow.toplevel) {
                 toplevel.onConfigure = &onToplevelConfigure;
@@ -517,6 +531,7 @@ version (Wayland):
 
         void reconfigure() {
             configureMaximized();
+            configureScaling();
             configureDecorated();
             configureMinimumSize();
             configureMaximumSize();
@@ -524,6 +539,7 @@ version (Wayland):
             configureParent();
             configureSize();
             configureTitle();
+            surface.commit();
         }
 
         void onSurfaceConfigure(XdgSurface s, uint serial) {
@@ -534,9 +550,22 @@ version (Wayland):
             window.onCloseRequest();
         }
 
+        Size userSizeFromPixelSize(Size sz) {
+            if (sz == Size.zero) {
+                return Size.zero;
+            }
+
+            if (useEmulatedResizeBorders) {
+                sz.width -= resizeMarginSize;
+                sz.height -= resizeMarginSize;
+            }
+
+            return sz;
+        }
+
         void onToplevelConfigure(XdgToplevel tl, int width, int height, wl_array* statesC) {
             assert(shown, "Window is not shown but it got configured.");
-            scope newSize = Size(cast(uint) width, cast(uint) height).unscale(scaling);
+            scope newSize = Size(cast(uint) width, cast(uint) height);
 
             if (newSize != size) {
                 size = newSize;
@@ -581,13 +610,14 @@ version (Wayland):
             context.save();
             scope(exit) context.restore();
 
+            context.scale(scaling, scaling);
+
             if (useEmulatedResizeBorders) {
                 context.sourceRgba(0, 0, 0, .15);
-                context.dropShadow(resizeMarginSize, resizeMarginSize, size.width * scaling, size.height * scaling , 0, resizeMarginSize);
+                context.dropShadow(resizeMarginSize, resizeMarginSize, size.width, size.height, 0, resizeMarginSize);
                 context.translate(resizeMarginSize, resizeMarginSize);
             }
 
-            context.scale(scaling, scaling);
             context.rectangle(0, 0, size.tupleof);
             context.clip();
 
@@ -643,14 +673,12 @@ version (Wayland):
 
         void onHover(Point location) {
             if (useEmulatedResizeBorders) {
-                auto sz = _trueSize;
-                if (resizable && (location.x < resizeMarginSize || location.y < resizeMarginSize
-                || location.x > sz.width - resizeMarginSize || location.y > sz.height - resizeMarginSize)) {
+                auto sz = _userSize;
+                if (resizable && !Rectangle(resizeMarginSize, resizeMarginSize, sz.tupleof).contains(location)) {
                     if (auto mouseLocation = mousePos.insideWindow()) {
                         window.onHoverEnd(*mouseLocation);
                     }
 
-                    // const scaling = scaling();
                     const edgeSize = 2 * resizeMarginSize;
 
                     const leftEdge = location.x < edgeSize;
@@ -708,7 +736,6 @@ version (Wayland):
                 location.x -= resizeMarginSize;
                 location.y -= resizeMarginSize;
             }
-            location = location.unscale(scaling);
 
             if (mousePos.tag != WaylandMousePos.Tag.insideWindow) {
                 window.onHoverStart(location);
@@ -721,7 +748,7 @@ version (Wayland):
         void onTouchStart(Point location) {
             if (useEmulatedResizeBorders) {
                 auto sz = size;
-                if (location.x < resizeMarginSize || location.y < resizeMarginSize || location.x > sz.width + resizeMarginSize || location.y > sz.height + resizeMarginSize) {
+                if (!Rectangle(resizeMarginSize, resizeMarginSize, sz.tupleof).contains(location)) {
                     warning("Attempted to resize the window with touch: this is not yet supported.");
                     // onHover(location);
                     // onClickStart(MouseButton.left);
@@ -737,12 +764,12 @@ version (Wayland):
 
         void onTouchMove(Point location) {
             if (useEmulatedResizeBorders) {
-                location.x -= resizeMarginSize;
-                location.y -= resizeMarginSize;
-                auto sz = _trueSize;
-                if (location.x < 0 || location.y < 0 || location.x > sz.width + resizeMarginSize || location.y > sz.height + resizeMarginSize) {
+                auto sz = _logicalSize;
+                if (!Rectangle(resizeMarginSize, resizeMarginSize, sz.tupleof).contains(location)) {
                     return;
                 }
+                location.x -= resizeMarginSize;
+                location.y -= resizeMarginSize;
             }
             location = location.unscale(scaling);
 
@@ -751,12 +778,12 @@ version (Wayland):
 
         void onTouchEnd(Point location) {
             if (useEmulatedResizeBorders) {
-                location.x -= resizeMarginSize;
-                location.y -= resizeMarginSize;
-                auto sz = _trueSize;
-                if (location.x < 0 || location.y < 0 || location.x > sz.width + resizeMarginSize || location.y > sz.height + resizeMarginSize) {
+                auto sz = _logicalSize;
+                if (!Rectangle(resizeMarginSize, resizeMarginSize, sz.tupleof).contains(location)) {
                     return;
                 }
+                location.x -= resizeMarginSize;
+                location.y -= resizeMarginSize;
             }
             location = location.unscale(scaling);
 
@@ -929,7 +956,8 @@ version (Wayland):
         }
 
         Size _userSize;
-        Size _trueSize;
+        Size _logicalSize;
+        Size _pixelSize;
         Size size() {
             return _userSize;
         }
@@ -945,19 +973,31 @@ version (Wayland):
                 return;
             }
 
-            _trueSize = _userSize.scale(scaling);
+            auto scaling = scaling();
+            _logicalSize = _userSize;
             if (useEmulatedResizeBorders) {
-                xdgSurface.setWindowGeometry(cast(int) resizeMarginSize, cast(int) resizeMarginSize, _trueSize.tupleof);
                 auto trueBorderSize = cast(int) (2 * resizeMarginSize);
-                _trueSize.width += trueBorderSize;
-                _trueSize.height += trueBorderSize;
+                _logicalSize.width += trueBorderSize;
+                _logicalSize.height += trueBorderSize;
+                _pixelSize = _logicalSize.scale(scaling);
+                xdgSurface.setWindowGeometry(
+                    resizeMarginSize,
+                    resizeMarginSize,
+                    _userSize.tupleof,
+                );
             } else {
-                xdgSurface.setWindowGeometry(0, 0, _trueSize.tupleof);
+                _pixelSize = _logicalSize.scale(scaling);
+                xdgSurface.setWindowGeometry(0, 0, _logicalSize.tupleof);
             }
+
+            if (viewport) {
+                viewport.setDestination(_logicalSize.tupleof);
+            }
+
             if (!renderer) {
                 return;
             }
-            renderer.resize(this, _trueSize.tupleof);
+            renderer.resize(this, _pixelSize.tupleof);
         }
 
         Size _minimumSize = Size(20, 20);
@@ -976,7 +1016,7 @@ version (Wayland):
         void configureMinimumSize() {
             if (auto toplevel = xdgWindow.toplevel) {
                 if (resizable) {
-                    toplevel.setMinSize(_minimumSize.scale(scaling).tupleof);
+                    toplevel.setMinSize(_minimumSize.tupleof);
                 }
             }
         }
@@ -997,7 +1037,7 @@ version (Wayland):
         void configureMaximumSize() {
             if (auto toplevel = xdgWindow.toplevel) {
                 if (resizable) {
-                    toplevel.setMaxSize(_maximumSize.scale(scaling).tupleof);
+                    toplevel.setMaxSize(_maximumSize.tupleof);
                 }
             }
         }
@@ -1161,7 +1201,6 @@ version (Wayland):
             return _maximized;
         }
         void maximized(bool value) {
-            info(_maximized, " <- ", value);
             _maximized = value;
             configureMaximized();
             if (value != _maximized) {
@@ -1185,14 +1224,37 @@ version (Wayland):
             _opacity = value;
         }
 
+        enum resizeMarginSize = 16;
+        uint resizeMarginPixelSize() {
+            return cast(uint) ceil(resizeMarginSize * scaling());
+        }
+
         double _scaling = 1.;
         double scaling() {
             return _scaling;
         }
         void scaling(double value) {
             _scaling = value;
+            configureScaling();
             configureSize();
             resetCursorThemeManager();
+
+            debug {
+                if (viewport) {
+                    trace("Fractional scaling enabled: scaling = ", _scaling);
+                } else {
+                    trace("Integer scaling enabled: scaling = ", _scaling);
+                }
+            }
+        }
+        void configureScaling() {
+            if (!viewport) {
+                _scaling = ceil(_scaling);
+                uint scaling = cast(uint) _scaling;
+                surface.setBufferScale(scaling);
+            } else {
+
+            }
         }
 
         void moveDrag() {
@@ -1236,8 +1298,8 @@ version (Wayland):
         void showWindowControlMenu(Point location) {
             if (auto toplevel = xdgWindow.toplevel) {
                 if (useEmulatedResizeBorders) {
-                    location.x += resizeMarginSize;
-                    location.y += resizeMarginSize;
+                    location.x += resizeMarginPixelSize;
+                    location.y += resizeMarginPixelSize;
                 }
                 toplevel.showWindowMenu(backend.seat, backend.currentSerial, location.tupleof);
             } else {
@@ -1246,7 +1308,7 @@ version (Wayland):
         }
 
         Size canvasSize() {
-            return _trueSize;
+            return _pixelSize;
         }
 
         version (NanoVega) {
@@ -1369,6 +1431,9 @@ class WaylandBackendBuilder: BackendBuilder {
                 return 2;
             } catch (SharedLibLoadException e) {
                 error("Your environment tells us to use Wayland, but libwayland-client isn't installed. Falling back.");
+                debug {
+                    trace("More information: ", e);
+                }
             }
         }
         return 0;

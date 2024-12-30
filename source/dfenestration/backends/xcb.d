@@ -52,6 +52,9 @@ final class XcbBackend: Backend, VkVGRendererCompatible, NanoVegaGLRendererCompa
 
     final void roundtrip() {
         xcb_flush(connection);
+
+        static ubyte i = 0;
+        ++i;
         while (auto event = xcb_poll_for_event(connection)) {
             scope(exit) free(event);
             if (!event.response_type) {
@@ -61,10 +64,12 @@ final class XcbBackend: Backend, VkVGRendererCompatible, NanoVegaGLRendererCompa
 
             switch (event.response_type) {
                 case XCB_EXPOSE:
+                    info(i, " EXPOSE");
                     auto event_expose = cast(xcb_expose_event_t*) event;
                     xcbWindows[event_expose.window].dWindow.invalidate();
                     break;
                 case XCB_CONFIGURE_NOTIFY:
+                    info(i, " configure");
                     xcb_configure_notify_event_t* event_configure = cast(xcb_configure_notify_event_t*) event;
                     auto window = xcbWindows[event_configure.window];
 

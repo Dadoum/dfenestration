@@ -12,38 +12,38 @@ My answer is to make a framework with a somewhat old architecture. Surely not op
 but good enough and easy to use.
 
 
-
 ## Example code
 
 ```d
 import dfenestration.widgets.aligner;
-import dfenestration.widgets.button;
+import dfenestration.widgets.buttonbase;
 import dfenestration.widgets.column;
 import dfenestration.widgets.test;
 import dfenestration.widgets.text;
 import dfenestration.widgets.window;
 import dfenestration.primitives;
 
-int main() 
+int main()
     => new Window()
-            .title("Dfenestration example")
+        .title("Dfenestration example")
+    [
+        new Aligner()
         [
-            new Aligner()
+            new Column()
+                .spacing(8)
             [
-                new Column()
-                    .spacing(8)
-                [
-                    new Test()
-                        .size(Size(200, 200))
-                        .naturalSize(Size(300, 300)),
+                new Test()
+                    .size(Size(200, 200))
+                    .naturalSize(Size(300, 300)),
 
-                    new class Button { override void onPress(Point, MouseButton) { info("Click registered!"); } }
-                    [
-                        new Text("Hello!!")
-                    ]
+                new Button()
+                    .pressed((_) => info("Click registered!"))
+                [
+                    new Text(text: "Hello!!")
                 ]
-            ],
-        ].run();
+            ]
+        ],
+    ].run();
 ```
 
 Screenshot of that example (as of 2024-07-31, Wayland without server decorations + OpenGL):
@@ -87,25 +87,31 @@ because splitting everything from the start is unpractical for development.
 
 ## WIP
 
-- bug, windows are not appearing.
 - Font shaping
 - Pop-up support/multiple windows. xdg-toplevel-drag.
 - click, touch, scroll, gestures!
 - focus management (nextFocus, previousFocus), accels
-- fractional scaling
 
-## Known bugs
+## Known issues
 
-#### _Vulkan backend is bad_
-
-- Resizing from the top left corner with the Vulkan backend is making the window jump 
-the first time.
-- Resizing a vulkan window is a bit laggy (it's a VkVG issue tho).
+- XCB is hard linked, so you'll need it.
+- XCB backend is flickering
+- XCB + Nvidia is buggy.
 - Vulkan + Wayland + Nvidia is buggy.
 
 ## Current support
 
-Wayland with relatively recent protocols.
+- Wayland
+  - System cursor themes
+  - Wayland cursor protocol
+  - Integer scaling
+  - Fractional scaling
+  - Decorations (Wayland + KDE specific)
+  - EGL/OpenGL
+  - Vulkan (through VkVG)
+- X11 (through XCB, not Xlib!)
+  - OpenGL (through EGL-XCB, not GLX! requires recent GPU drivers!)
+  - Vulkan (through VkVG)
 
 ## Roadmap
 
@@ -134,22 +140,22 @@ implementation.
 
 Priority:
 
-- Platform support: Wayland support (Software and OpenGL) with xdg-decorations support
-- Button and text widgets
-- Styling?
-- Platform support: X11 support (with any renderer)
-- Making a TextLine widget
-- Making a ScrollView widget
-- Accessibility: AT-SPI
-- Fractional scaling on Wayland
-- Platform support: Windows (with any renderer)
-- Accessibility: Windows
-- Theming (theme engines, affecting defaults and draws)
-- Example: Port a complex widget from GTK+ 2
-- **Stabilise API**
-- Platform support: macOS (Software)
-- Accessibility: macOS
-- Blur effects on Windows, macOS and KDE
+- [x] Platform support: Wayland support (Software and OpenGL) with xdg-decorations support
+- [ ] Button and text (with rtl built-in) widgets
+- [ ] Styling?
+- [ ] _almost_ Platform support: X11 support (with any renderer)
+- [ ] Making a TextLine widget
+- [ ] Making a ScrollView widget
+- [ ] Accessibility: AT-SPI
+- [ ] Fractional scaling on Wayland
+- [ ] Platform support: Windows (with any renderer)
+- [ ] Accessibility: Windows
+- [ ] Theming (theme engines, affecting defaults and draws)
+- [ ] Example: Port a complex widget from GTK+ 2
+- [ ] **Stabilise API**
+- [ ] Platform support: macOS (Software)
+- [ ] Accessibility: macOS
+- [ ] Blur effects on Windows, macOS and KDE
 
 ## Credits
 
