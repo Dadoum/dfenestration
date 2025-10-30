@@ -1,5 +1,6 @@
 module dfenestration.widgets.windowframe;
 
+import dfenestration.widgets.aligner;
 import dfenestration.widgets.bin;
 import dfenestration.widgets.buttonbase;
 import dfenestration.widgets.column;
@@ -28,9 +29,14 @@ class WindowFrame: Bin {
         super.content = new Column() [
             new WindowHandle() [
                 new Row() [
-                    // TODO: add window icon
-                    // TODO: use EllipsisText
-                    titleText = new Text("DFENESTRATION ERROR - SET THE TITLE FIRST").layoutProperties!Row(/+ expand +/ true),
+                    // TODO: RTL
+                    new Aligner()
+                        .horizontalAlignment(Alignment.left)
+                        .layoutProperties!Row(/+ expand +/ true) [
+                        // TODO: add window icon
+                        // TODO: finish EllipsisText
+                        titleText = new Text("DFENESTRATION ERROR - SET THE TITLE FIRST"),
+                    ],
                     // new Spacer().layoutProperties!Row(/+ expand +/ true),
                     new class ButtonBase { override void onPress(Point location, MouseButton button) => window.minimize(); } [
                         new Test()

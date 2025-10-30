@@ -68,7 +68,7 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
         foreach (allocation; allocations) {
             auto widget = allocation.widget;
             auto allocatedRect = allocation.extent;
-            auto rectangle = invalidatedRect.intersect(allocatedRect);
+            auto rectangle = Rectangle.intersect(invalidatedRect, allocatedRect);
             if (rectangle != Rectangle.zero) {
                 context.save();
                 scope(exit) context.restore();
@@ -124,6 +124,11 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
 
     override CursorType cursor() {
         return hoveredWidget ? hoveredWidget.cursor() : super.cursor();
+    }
+
+    override void reloadStyle() {
+        super.reloadStyle();
+        forall((w) => w.reloadStyle());
     }
 
     override Widget cursor(CursorType cursor) {
@@ -290,8 +295,8 @@ abstract class ContainerBase: Widget, UsesData!ContainerData {
             if (auto window = window()) {
                 sizeAllocationScheduled = true;
                 window.runInMainThread({
-                    onSizeAllocate();
                     sizeAllocationScheduled = false;
+                    onSizeAllocate();
                 });
             }
         }

@@ -514,9 +514,6 @@ version (Wayland):
                 warning("Cannot fractional scale the window.");
             }
 
-            renderer.initializeWindow(this);
-            renderer.draw(this);
-
             backend.display.roundtrip();
 
             reconfigure();
@@ -527,6 +524,9 @@ version (Wayland):
             //     // popup.onConfigure = (pop)
             // }
             configureMaximized();
+
+            renderer.initializeWindow(this);
+            renderer.draw(this);
         }
 
         void reconfigure() {

@@ -4,7 +4,10 @@ version(VkVG):
 
 import std.logger;
 import std.string;
+
 import dfenestration.renderers.context;
+import dfenestration.renderers.text.textlayouter;
+
 import vkvg;
 
 class VkVGContext: Context {
@@ -254,8 +257,8 @@ class VkVGContext: Context {
         vkvg_set_font_size(handle, size);
     }
 
-    void showText(string text) {
-        vkvg_show_text(handle, text.toStringz);
+    void showGlyph(RenderedGlyph glyph) {
+        warning("Not implemented");
     }
 
     //void textExtents(string text, TextExtents* extents) {

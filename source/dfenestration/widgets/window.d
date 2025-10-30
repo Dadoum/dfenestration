@@ -12,6 +12,8 @@ import dfenestration.backends.backend;
 
 import dfenestration.renderers.context;
 
+import dfenestration.style;
+
 import dfenestration.widgets.bin;
 import dfenestration.widgets.column;
 import dfenestration.widgets.container;
@@ -51,7 +53,18 @@ class Window: Container!Widget {
     mixin State!_;
 
     bool running = false;
+    Style styleStore;
     WindowFrame frame;
+
+    override Style* style() {
+        return &styleStore;
+    }
+
+    override Window style(Style* value) {
+        styleStore = *value;
+        reloadStyle();
+        return this;
+    }
 
     /++
      + Create a new Window with the best backend available.
@@ -68,6 +81,10 @@ class Window: Container!Widget {
         this.backend = backend;
         this._window = this;
         backendWindow = backend.createBackendWindow(this);
+
+        styleStore = Style(
+            defaultFace: backend.createDefaultFace()
+        );
 
         // default fields
         role = Role.toplevel;

@@ -2,7 +2,7 @@ module dfenestration.renderers.text.font;
 
 import dfenestration.renderers.text.freetype;
 
-struct Face {
+struct FontFaceRef {
     @disable this();
     this(this) {
         FT_Reference_Face(face);

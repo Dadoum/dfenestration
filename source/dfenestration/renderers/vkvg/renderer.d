@@ -755,7 +755,7 @@ version (VkVG) {
             }
 
             auto device = renderer.device;
-            destroy(vkvgSurface);
+            // destroy(vkvgSurface);
 
             foreach (imageBuffer; imageBuffers) {
                 vkDestroyImageView(device, imageBuffer.view, null);
@@ -777,6 +777,7 @@ version (VkVG) {
             vkDestroySemaphore(renderer.device, graphicsSemaphore, null);
 
             vkDestroySurfaceKHR(renderer.instance, surface, null);
+            destroy(vkvgSurface);
             destroy(vkvgDevice);
         }
     }

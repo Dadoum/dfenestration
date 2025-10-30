@@ -5,6 +5,7 @@ public import dfenestration.primitives;
 public import dfenestration.renderers.context;
 
 import dfenestration.primitives;
+import dfenestration.style;
 import dfenestration.widgets.containerbase;
 import dfenestration.widgets.window;
 
@@ -14,18 +15,21 @@ import dfenestration.widgets.window;
 abstract class Widget {
     private struct _ {
         /// Real parent in the internal widget tree
-        @Trigger!(Widget.cacheWindow) ContainerBase parent;
+        @Trigger!(Widget.cacheWindowAndStyle) ContainerBase parent;
         /// Parent data for the apparent widget parent
         ContainerData parentData;
         /// Space given to the widget inside the parent container allocation.
         @TriggerRedraw Rectangle allocation;
         /// Cursor shown when hovering the widget
         CursorType cursor = CursorType.default_;
+        /// Widget style
+        Style* style;
     }
     mixin State!_;
 
     size_t containerIndex = -1;
 
+    void reloadStyle() {}
     void draw(Context context, Rectangle rectangle) {}
 
     /++
@@ -176,7 +180,7 @@ abstract class Widget {
     }
 
     uint baselineHeight() {
-        return allocation.height / 2;
+        return allocation.height;
     }
 
     /++
@@ -207,10 +211,15 @@ abstract class Widget {
     }
 
     Window _window;
-    final void cacheWindow() {
+    final void cacheWindowAndStyle() {
         _window = parent !is null ? parent._window : null;
         if (ContainerBase container = cast(ContainerBase) this) {
-            container.forall((widget) { widget.cacheWindow(); });
+            container.forall((widget) { widget.cacheWindowAndStyle(); });
+        }
+
+        if (_window && style != window.style) {
+            style = _window.style;
+            reloadStyle();
         }
     }
 

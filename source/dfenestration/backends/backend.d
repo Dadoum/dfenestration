@@ -34,8 +34,11 @@ abstract class Backend {
 
     EventLoop eventLoop() => _eventLoop;
 
-    Face createDefaultFace() => loadFaceFromFile("/usr/share/fonts/liberation-sans/LiberationSans-Regular.ttf");
-    Face createMonospaceFace() => loadFaceFromFile("/usr/share/fonts/liberation-mono/LiberationMono-Regular.ttf");
+    // TODO: hardcoded font paths
+    FontFaceRef defaultFace;
+
+    FontFaceRef createDefaultFace() => loadFaceFromFile("/usr/share/fonts/liberation-sans-fonts/LiberationSans-Regular.ttf");
+    FontFaceRef createMonospaceFace() => loadFaceFromFile("/usr/share/fonts/liberation-mono/LiberationMono-Regular.ttf");
 
     this() {
         _eventLoop = new EventLoop();
@@ -50,6 +53,7 @@ abstract class Backend {
         }
 
         FT_Init_FreeType(&_freetypeLibrary);
+        defaultFace = createDefaultFace();
     }
 
     ~this() {
@@ -105,21 +109,21 @@ abstract class Backend {
 
     abstract BackendWindow createBackendWindow(Window window);
 
-    final Face loadFaceFromFile(string path) {
+    final FontFaceRef loadFaceFromFile(string path) {
         FT_Open_Args openArgs;
         openArgs.flags = FT_OPEN_PATHNAME;
         openArgs.pathname = cast(char*) path.toStringz();
         openArgs.stream   = null;
-        return Face(_freetypeLibrary, openArgs);
+        return FontFaceRef(_freetypeLibrary, openArgs);
     }
 
-    final Face loadFaceFromMemory(ubyte[] data) {
+    final FontFaceRef loadFaceFromMemory(ubyte[] data) {
         FT_Open_Args openArgs;
         openArgs.flags = FT_OPEN_MEMORY;
         openArgs.memory_base = data.ptr;
         openArgs.memory_size = data.length;
         openArgs.stream = null;
-        return Face(_freetypeLibrary, openArgs, data);
+        return FontFaceRef(_freetypeLibrary, openArgs, data);
     }
 
     final void runInMainThread(void delegate() func) {

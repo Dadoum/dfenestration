@@ -1,5 +1,10 @@
 module dfenestration.widgets.text;
 
+import std.logger;
+
+import dfenestration.renderers.text.font;
+import dfenestration.renderers.text.textlayouter;
+import dfenestration.style;
 import dfenestration.widgets.widget;
 
 /++
@@ -7,18 +12,37 @@ import dfenestration.widgets.widget;
  +/
 class Text: Widget {
     struct _ {
-        @TriggerWindowSizeAllocation string text;
+        @Trigger!(onTextSet) string text;
         bool selectable = true;
     }
     mixin State!_;
+
+    TextLayouter textLayouter;
 
     override bool onHoverStart(Point location) {
         window.cursor();
         return super.onHoverStart(location);
     }
 
+    override void reloadStyle() {
+        super.reloadStyle();
+        textLayouter.face = style.defaultFace;
+        this.scheduleWindowSizeAllocation();
+        this.invalidate();
+    }
+
+    this() {
+        textLayouter = TextLayouter();
+    }
+
     this(string text) {
+        this();
         this.text = text;
+    }
+
+    void onTextSet() {
+         textLayouter.text = text;
+         this.scheduleWindowSizeAllocation();
     }
 
     override void preferredSize(
@@ -27,11 +51,15 @@ class Text: Widget {
         out uint minimumHeight,
         out uint naturalHeight
     ) {
-        /// TODO: text shaping
-        minimumWidth = 0;
-        naturalWidth = 0;
-        minimumHeight = 20;
-        naturalHeight = 20;
+        auto boundingBox = textLayouter.boundingBox();
+        minimumWidth = boundingBox.width;
+        naturalWidth = boundingBox.width;
+        minimumHeight = boundingBox.height;
+        naturalHeight = boundingBox.height;
+    }
+
+    override uint baselineHeight() {
+        return textLayouter.baseline();
     }
 
     override void draw(Context c, Rectangle rectangle) {
@@ -41,8 +69,15 @@ class Text: Widget {
         // c.fill();
         // c.selectFontPath = "/usr/share/fonts/liberation-mono/LiberationMono-Bold.ttf";
 
-        c.moveTo(0, 0);
+        c.moveTo(20, 0);
+        foreach (glyph; textLayouter.renderedGlyphs()) {
+            if (Rectangle.intersect(Rectangle(glyph.position, glyph.size), rectangle) != Rectangle.zero) {
+                c.showGlyph(glyph);
+                c.rectangle(glyph.position.tupleof, glyph.size.tupleof);
+                // info(glyph);
+                c.fill();
+            }
+        }
         // c.showText(text);
-        c.fill();
     }
 }

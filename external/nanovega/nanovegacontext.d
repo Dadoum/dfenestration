@@ -3,6 +3,7 @@ module nanovegacontext;
 import std.logger;
 
 import dfenestration.renderers.context;
+import dfenestration.renderers.text.textlayouter;
 
 import arsd.nanovega;
 
@@ -218,11 +219,9 @@ class NanoVegaContext: Context {
     void fontSize(uint size) {
         context.fontSize = size;
     }
-    void showText(string text) {
-        // TODO implement that code in a sensible way to ensure that it could be reproduced perfectly in another backend
-        float[] bounds = new float[4];
-        context.textBounds(0, 0, text, bounds);
-        context.text(x + bounds[0], y + bounds[3] - bounds[1], text);
+
+    void showGlyph(RenderedGlyph glyph) {
+        warning("Not implemented");
     }
 }
 
