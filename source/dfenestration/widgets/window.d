@@ -83,7 +83,7 @@ class Window: Container!Widget {
         backendWindow = backend.createBackendWindow(this);
 
         styleStore = Style(
-            defaultFace: backend.createDefaultFace()
+            fontFamily: backend.defaultFamily()
         );
 
         // default fields

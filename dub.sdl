@@ -12,17 +12,19 @@ dependency "dynamic-loader" repository="git+https://github.com/Dadoum/dynamicloa
 dependency "libasync" version="~>0.9.7"
 versions "FT_2_12"
 
+dependency "hairetsu" repository="git+https://github.com/Inochi2D/hairetsu.git" version="d088cc1a8da4773938628d87a7720ac9f1e0cfb9"
+
 // Wayland backend (default on Linux)
-// TODO: use the remote for my fork.
-dependency "wayland:client" path="../wayland-d" // version="~>0.3.1"
+dependency "wayland:client" version="~>0.4"
 subConfiguration "wayland:client" "dynamic"
-dependency "wayland:cursor" path="../wayland-d" // version="~>0.3.1"
+dependency "wayland:cursor" version="~>0.4"
 subConfiguration "wayland:cursor" "dynamic"
-dependency "wayland:egl" path="../wayland-d" // version="~>0.3.1"
+dependency "wayland:egl" version="~>0.4"
 subConfiguration "wayland:egl" "dynamic"
 sourcePaths "external/wayland-protocols"
 versions "Wayland"
 
+// X11 backend (fallback on Linux)
 dependency "xcb-d" version="~>2.1.1+1.11.1"
 versions "Xcb"
 

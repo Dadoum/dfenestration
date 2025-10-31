@@ -2,6 +2,8 @@ module dfenestration.widgets.text;
 
 import std.logger;
 
+import hairetsu;
+
 import dfenestration.renderers.text.font;
 import dfenestration.renderers.text.textlayouter;
 import dfenestration.style;
@@ -18,6 +20,7 @@ class Text: Widget {
     mixin State!_;
 
     TextLayouter textLayouter;
+    HRTextLayouter textLayouter2;
 
     override bool onHoverStart(Point location) {
         window.cursor();
@@ -26,7 +29,9 @@ class Text: Widget {
 
     override void reloadStyle() {
         super.reloadStyle();
-        textLayouter.face = style.defaultFace;
+        face = style.regularFont().createFace();
+        reshape();
+        // textLayouter.face = style.defaultFace;
         this.scheduleWindowSizeAllocation();
         this.invalidate();
     }

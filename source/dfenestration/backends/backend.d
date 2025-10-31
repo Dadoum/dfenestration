@@ -16,6 +16,8 @@ import bindbc.freetype;
 
 import libasync;
 
+import hairetsu;
+
 import dfenestration.primitives;
 import dfenestration.renderers.context;
 import dfenestration.renderers.renderer;
@@ -34,14 +36,52 @@ abstract class Backend {
 
     EventLoop eventLoop() => _eventLoop;
 
-    // TODO: hardcoded font paths
-    FontFaceRef defaultFace;
+    FontCollection fontCollection;
 
-    FontFaceRef createDefaultFace() => loadFaceFromFile("/usr/share/fonts/liberation-sans-fonts/LiberationSans-Regular.ttf");
-    FontFaceRef createMonospaceFace() => loadFaceFromFile("/usr/share/fonts/liberation-mono/LiberationMono-Regular.ttf");
+    FontFamily _defaultFamily;
+    FontFamily defaultFamily() => _defaultFamily;
 
     this() {
         _eventLoop = new EventLoop();
+
+        fontCollection = FontCollection.createFromSystem();
+
+        version (Windows) {
+            enum uiFonts = [
+                "Segoe UI",
+                "Inter",
+                "Liberation Sans",
+                "Noto Sans",
+            ];
+        } else version (OSX) {
+            enum uiFonts = [
+                "SF",
+                "Inter",
+                "Liberation Sans",
+                "Noto Sans",
+            ];
+        } else {
+            enum uiFonts = [
+                "Inter",
+                "Liberation Sans",
+                "Noto Sans",
+            ];
+        }
+
+        static foreach (fontName; uiFonts) {
+            foreach (fontFamily; fontCollection.families()) {
+                if (fontFamily.familyName() == fontName) {
+                    trace("Selected font: ", fontName);
+                    _defaultFamily = fontFamily;
+                    goto fontOk;
+                }
+            }
+        }
+
+        // fallback on the first font in the list.
+        _defaultFamily = fontCollection.families()[0];
+        warning("No known system font found, picked ", _defaultFamily.familyName());
+        fontOk:
 
         FTSupport ftStatus = loadFreeType();
         HBSupport hbStatus = loadHarfBuzz();
@@ -53,7 +93,6 @@ abstract class Backend {
         }
 
         FT_Init_FreeType(&_freetypeLibrary);
-        defaultFace = createDefaultFace();
     }
 
     ~this() {
@@ -105,6 +144,10 @@ abstract class Backend {
         }
 
         throw new NoRendererException(format!"No renderer is available for %s."(R.stringof));
+    }
+
+    string name(this R)() {
+
     }
 
     abstract BackendWindow createBackendWindow(Window window);
@@ -233,6 +276,8 @@ Backend bestBackend() {
             throw new NoBackendException("No backend available. ");
         }
 
+        trace("Selected backend: ", typeid(cast(Object) computedBestBackendBuilder).toString());
+
         return computedBestBackendBuilder.instance();
     }
 }
@@ -245,7 +290,7 @@ Backend bestBackendForRenderer(RendererT: Renderer)(bool ignoreEnvironment = fal
         if (!ignoreEnvironment) {
             if (auto backendBuilder = backendStr in backendBuilders) {
                 auto backend = backendBuilder.instance();
-                enforce(cast(BackendCompatibleWith!RendererT) backend != null, format!`Environment enforced the incompatible backend "%s"`(backendStr));
+                enforce(cast(BackendCompatibleWith!RendererT) backend != null, format!`Environment enforces the incompatible backend "%s"`(backendStr));
                 return backend;
             }
 
