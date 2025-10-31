@@ -9,12 +9,13 @@ import hairetsu;
 struct Style {
     FontFamily _fontFamily;
 
-    FontFaceInfo[string] _faceInfos;
-    Font[string] _fonts;
-
     this(FontFamily fontFamily) {
         this.fontFamily = fontFamily;
     }
+    
+    // ~ Font section ~
+    FontFaceInfo[string] _faceInfos;
+    Font[string] _fonts;
 
     FontFamily fontFamily() => _fontFamily;
 

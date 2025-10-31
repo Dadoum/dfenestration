@@ -35,7 +35,8 @@ class WindowFrame: Bin {
                         .layoutProperties!Row(/+ expand +/ true) [
                         // TODO: add window icon
                         // TODO: finish EllipsisText
-                        titleText = new Text("DFENESTRATION ERROR - SET THE TITLE FIRST"),
+                        titleText = new Text("DFENESTRATION ERROR - SET THE TITLE FIRST")
+                            .selectable(false),
                     ],
                     // new Spacer().layoutProperties!Row(/+ expand +/ true),
                     new class ButtonBase { override void onPress(Point location, MouseButton button) => window.minimize(); } [

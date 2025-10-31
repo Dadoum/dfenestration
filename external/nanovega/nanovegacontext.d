@@ -3,7 +3,6 @@ module nanovegacontext;
 import std.logger;
 
 import dfenestration.renderers.context;
-import dfenestration.renderers.text.textlayouter;
 
 import arsd.nanovega;
 
@@ -220,9 +219,9 @@ class NanoVegaContext: Context {
         context.fontSize = size;
     }
 
-    void showGlyph(RenderedGlyph glyph) {
-        warning("Not implemented");
-    }
+    // void showGlyph(RenderedGlyph glyph) {
+    //     warning("Not implemented");
+    // }
 }
 
 class NanoVegaException : Exception

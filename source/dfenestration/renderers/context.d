@@ -3,8 +3,6 @@ module dfenestration.renderers.context;
 import bindbc.freetype;
 import bindbc.hb;
 
-import dfenestration.renderers.text.textlayouter;
-
 /++
  + Almost replicates Cairo's API.
  +/
@@ -63,5 +61,5 @@ interface Context {
     void rotate(float radians);
     // void identityMatrix();
 
-    void showGlyph(RenderedGlyph glyph);
+    // void showGlyph(RenderedGlyph glyph);
 }

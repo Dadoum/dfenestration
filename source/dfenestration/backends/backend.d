@@ -10,6 +10,7 @@ import std.string;
 import std.logger;
 import std.process;
 import std.traits;
+import std.typecons;
 
 import bindbc.hb;
 import bindbc.freetype;
@@ -20,9 +21,8 @@ import hairetsu;
 
 import dfenestration.primitives;
 import dfenestration.renderers.context;
+import dfenestration.renderers.image;
 import dfenestration.renderers.renderer;
-import dfenestration.renderers.text.font;
-import dfenestration.renderers.text.textlayouter;
 import dfenestration.widgets.window;
 
 enum backendEnvironmentVariable = "DFBACKEND";
@@ -152,23 +152,6 @@ abstract class Backend {
 
     abstract BackendWindow createBackendWindow(Window window);
 
-    final FontFaceRef loadFaceFromFile(string path) {
-        FT_Open_Args openArgs;
-        openArgs.flags = FT_OPEN_PATHNAME;
-        openArgs.pathname = cast(char*) path.toStringz();
-        openArgs.stream   = null;
-        return FontFaceRef(_freetypeLibrary, openArgs);
-    }
-
-    final FontFaceRef loadFaceFromMemory(ubyte[] data) {
-        FT_Open_Args openArgs;
-        openArgs.flags = FT_OPEN_MEMORY;
-        openArgs.memory_base = data.ptr;
-        openArgs.memory_size = data.length;
-        openArgs.stream = null;
-        return FontFaceRef(_freetypeLibrary, openArgs, data);
-    }
-
     final void runInMainThread(void delegate() func) {
         AsyncNotifier notifier = new AsyncNotifier(_eventLoop);
         notifier.run({
@@ -212,6 +195,9 @@ interface BackendWindow {
 
     bool decorated();
     void decorated(bool value);
+
+    Nullable!Image icon();
+    void icon(Nullable!Image image);
 
     void parent(BackendWindow window);
 

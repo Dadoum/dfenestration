@@ -8,6 +8,7 @@ import std.format;
 import std.logger;
 import std.string;
 import std.traits: ReturnType, Parameters, isIntegral;
+import std.typecons;
 
 import core.stdc.stdlib;
 
@@ -21,6 +22,7 @@ import dfenestration.primitives;
 import dfenestration.renderers.nanovega.glrenderer;
 import dfenestration.renderers.vkvg.renderer;
 import dfenestration.renderers.context;
+import dfenestration.renderers.image;
 import dfenestration.renderers.renderer;
 import dfenestration.widgets.window;
 
@@ -534,6 +536,14 @@ final class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
         ];
         xcbProperty!"_MOTIF_WM_HINTS"(hints, backend.atom!"_MOTIF_WM_HINTS");
         _decorated = value;
+    }
+
+    Nullable!Image icon() {
+        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
+        return Nullable!Image.init;
+    }
+    void icon(Nullable!Image value) {
+        warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
     }
 
     XcbWindow _parent;

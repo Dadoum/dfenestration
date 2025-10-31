@@ -5,7 +5,6 @@ import std.algorithm.comparison : max;
 import std.string;
 
 import dfenestration.primitives;
-import dfenestration.renderers.text.textlayouter;
 import dfenestration.widgets.text;
 
 // TODO
@@ -18,11 +17,11 @@ class EllipsisText: Text {
 
     override void reloadStyle() {
         super.reloadStyle();
-        RenderedGlyph[] glyphs;
-        textLayouter.computeGlyphsForText("…", glyphs);
-        ellipsisSize =
-            glyphs
-                .fold!((acc, glyph) => max(acc, glyph.size.width))(0);
+        // RenderedGlyph[] glyphs;
+        // textLayouter.computeGlyphsForText("…", glyphs);
+        // ellipsisSize =
+        //     glyphs
+        //         .fold!((acc, glyph) => max(acc, glyph.size.width))(0);
     }
 
     // override EllipsisText allocation(Rectangle rect) {

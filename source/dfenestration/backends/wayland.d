@@ -1,15 +1,20 @@
 module dfenestration.backends.wayland;
 
 version (Wayland):
+    import core.sys.posix.unistd;
+    import core.sys.posix.sys.mman;
+
     import std.algorithm.mutation;
     import std.algorithm.searching;
     import std.conv;
     import std.datetime;
     import std.exception;
+    import std.format;
     import std.logger;
     import std.math.rounding;
     import std.meta;
     import std.process;
+    import std.typecons;
 
     import libasync;
 
@@ -28,12 +33,14 @@ version (Wayland):
     import xdgactivation;
     import xdgdecoration;
     import xdgshell;
+    import xdgtoplevelicon;
 
     import dfenestration.primitives;
     import dfenestration.taggedunion;
 
     import dfenestration.backends.backend;
     import dfenestration.types;
+    import dfenestration.renderers.image;
     import dfenestration.renderers.nanovega.glrenderer;
     import dfenestration.renderers.vkvg.renderer;
     import dfenestration.renderers.context;
@@ -46,16 +53,17 @@ version (Wayland):
                 WlCompositor,
                 WlOutput,
                 WlSeat,
+                WlShm,
                 WlSubcompositor,
                 XdgWmBase
             );
         alias SupportedProtocols = AliasSeq!(RequiredProtocols,
-            WlShm,
             OrgKdeKwinServerDecorationManager,
             WpCursorShapeManagerV1,
             WpFractionalScaleManagerV1,
             WpViewporter,
             XdgActivationV1,
+            XdgToplevelIconManagerV1,
             ZxdgDecorationManagerV1
         );
 
@@ -71,6 +79,7 @@ version (Wayland):
         alias compositor = wlObject!WlCompositor;
         alias output = wlObject!WlOutput;
         alias seat = wlObject!WlSeat;
+        alias shm = wlObject!WlShm;
         alias subcompositor = wlObject!WlSubcompositor;
         alias viewporter = wlObject!WpViewporter;
         alias windowManager = wlObject!XdgWmBase;
@@ -81,6 +90,7 @@ version (Wayland):
         alias xdgDecorationManager = wlObject!ZxdgDecorationManagerV1;
 
         alias fractionalScaleManager = wlObject!WpFractionalScaleManagerV1;
+        alias toplevelIconManager = wlObject!XdgToplevelIconManagerV1;
 
         WpCursorShapeDeviceV1 pointerShape;
 
@@ -416,6 +426,12 @@ version (Wayland):
         WaylandDecoration decoration = WaylandDecoration.none;
         WpFractionalScaleV1 fractionalScale;
         WpViewport viewport;
+        XdgToplevelIconV1 toplevelIcon;
+
+        int toplevelIconMemoryFd = -1;
+        WlShmPool toplevelIconMemoryPool = null;
+        ubyte[] toplevelIconMap = null;
+        WlBuffer toplevelIconBuffer = null;
 
         WaylandCursorThemeManager cursorThemeManager = void;
 
@@ -427,6 +443,15 @@ version (Wayland):
             if (backend.cursorShapeBackend == WaylandBackend.CursorShapeBackend.cursorThemeManager) {
                 cursorThemeManager = WaylandCursorThemeManager(backend);
                 resetCursorThemeManager();
+            }
+
+            if (backend.toplevelIconManager) {
+                toplevelIconMemoryFd = createSharedMemoryFd!"toplevel-icon"();
+                if (toplevelIconMemoryFd < 0) {
+                    warning("Cannot create shared memory to store the window icon.");
+                }
+            } else {
+                warning("Cannot set icons.");
             }
         }
 
@@ -539,6 +564,7 @@ version (Wayland):
             configureParent();
             configureSize();
             configureTitle();
+            configureIcon();
             surface.commit();
         }
 
@@ -1091,12 +1117,78 @@ version (Wayland):
             }
         }
 
+        Nullable!Image _image;
+        Nullable!Image icon() {
+            return _image;
+        }
+        void icon(Nullable!Image value) {
+            _image = value;
+
+
+            if (auto manager = backend.toplevelIconManager) {
+                if (toplevelIcon) {
+                    toplevelIcon.destroy();
+                    toplevelIcon = null;
+                }
+
+                if (toplevelIconBuffer) {
+                    toplevelIconBuffer.destroy();
+                    toplevelIconBuffer = null;
+                }
+
+                if (!value.isNull()) {
+                    if (toplevelIconMemoryFd >= 0) {
+                        auto image = value.get();
+                        auto buffer = image.buffer;
+                        auto len = buffer.length;
+
+                        if (len != toplevelIconMap.length || !toplevelIconMap) {
+                            if (toplevelIconMap != null) {
+                                munmap(toplevelIconMap.ptr, toplevelIconMap.length);
+                                toplevelIconMap = null;
+                            }
+
+                            ftruncate(toplevelIconMemoryFd, len);
+
+                            auto mapResult = mmap(null, len, PROT_READ | PROT_WRITE, MAP_SHARED, toplevelIconMemoryFd, 0);
+
+                            if (mapResult == MAP_FAILED) {
+                                warning("Failed to set the icon: image mapping failure");
+                                return;
+                            }
+
+                            toplevelIconMap = cast(ubyte[]) mapResult[0..len];
+                            if (toplevelIconMemoryPool) {
+                                toplevelIconMemoryPool.resize(cast(int) len);
+                            } else {
+                                toplevelIconMemoryPool = backend.shm.createPool(toplevelIconMemoryFd, cast(int) len);
+                            }
+                        }
+
+                        toplevelIconMap[] = image.buffer;
+                        toplevelIconBuffer = toplevelIconMemoryPool.createBuffer(0, image.width, image.height, 0, image.format.toWlShmFormat());
+                        toplevelIcon = manager.createIcon();
+                        toplevelIcon.addBuffer(toplevelIconBuffer, 1);
+                    }
+                }
+            }
+
+            configureIcon();
+        }
+        void configureIcon() {
+            if (auto manager = backend.toplevelIconManager) {
+                if (auto toplevel = xdgWindow.toplevel) {
+                    backend.toplevelIconManager.setIcon(*toplevel, toplevelIcon);
+                }
+            }
+        }
+
         WaylandWindow _parent;
         void parent(BackendWindow window) {
             auto waylandWindow = cast(WaylandWindow) window;
             enforce(waylandWindow !is null, "Tried to reparent a Wayland window to a non-Wayland window.");
 
-            if (isParentLooping(waylandWindow)) {
+            if (isChildWindow(waylandWindow)) {
                 errorf("Failed to assign the window %x as a parent of %x: doing so would create a loop.", cast(void*) waylandWindow, cast(void*) this);
                 return;
             }
@@ -1109,8 +1201,9 @@ version (Wayland):
                 show();
             }
         }
-        bool isParentLooping(WaylandWindow window) {
-            return !(_parent is null || (_parent != window && !_parent.isParentLooping(window)));
+        /// Checks whether window is a child of this window.
+        bool isChildWindow(WaylandWindow window) {
+            return !(window._parent is null || (window._parent != this && !isChildWindow(window._parent)));
         }
         void configureParent() {
             if (!_parent) {
@@ -1431,9 +1524,7 @@ class WaylandBackendBuilder: BackendBuilder {
                 return 2;
             } catch (SharedLibLoadException e) {
                 error("Your environment tells us to use Wayland, but libwayland-client isn't installed. Falling back.");
-                debug {
-                    trace("More information: ", e);
-                }
+                trace("More information: ", e);
             }
         }
         return 0;
@@ -1460,6 +1551,30 @@ class WaylandException : Exception
     }
 }
 
+version (linux) {
+    extern (C) {
+        enum MFD_CLOEXEC = 1U;
+        int memfd_create(const(char)* name, uint flags);
+    }
+} else version (FreeBSD) {
+    import core.sys.freebsd.sys.mman;
+} else {
+    import core.sys.posix.sys.mman;
+    import std.random;
+}
+
+pragma(inline, true)
+int createSharedMemoryFd(string debugName)() {
+    version (linux) {
+        return memfd_create(debugName, MFD_CLOEXEC);
+    } else version (FreeBSD) {
+        return shm_open(SHM_ANON, O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC, octal!"600");
+    } else {
+        auto name = format!"df-%s-%d\0"(debugName, unpredictableSeed()).ptr;
+        return shm_open(name, O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC, octal!"600");
+    }
+}
+
 // "macros"
 pragma(inline, true) {
     private Point scale(Point point, double scaling) {
@@ -1476,6 +1591,13 @@ pragma(inline, true) {
 
     private Size unscale(Size size, double scaling) {
         return Size(cast(uint) (size.width / scaling), cast(uint) (size.height / scaling));
+    }
+}
+
+pragma(inline, true) WlShm.Format toWlShmFormat(Image.Format format) {
+    with (Image.Format) final switch (format) {
+        case rgba8888:
+            return WlShm.Format.rgba8888;
     }
 }
 
