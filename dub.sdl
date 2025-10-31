@@ -13,12 +13,11 @@ dependency "libasync" version="~>0.9.7"
 versions "FT_2_12"
 
 // Wayland backend (default on Linux)
-// TODO: use the remote for my fork.
-dependency "wayland:client" path="../wayland-d" // version="~>0.3.1"
+dependency "wayland:client" version="~>0.4"
 subConfiguration "wayland:client" "dynamic"
-dependency "wayland:cursor" path="../wayland-d" // version="~>0.3.1"
+dependency "wayland:cursor" version="~>0.4"
 subConfiguration "wayland:cursor" "dynamic"
-dependency "wayland:egl" path="../wayland-d" // version="~>0.3.1"
+dependency "wayland:egl" version="~>0.4"
 subConfiguration "wayland:egl" "dynamic"
 sourcePaths "external/wayland-protocols"
 versions "Wayland"
