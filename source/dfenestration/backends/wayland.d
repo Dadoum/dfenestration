@@ -1294,9 +1294,10 @@ version (Wayland):
             return _maximized;
         }
         void maximized(bool value) {
+            auto orig = _maximized;
             _maximized = value;
             configureMaximized();
-            if (value != _maximized) {
+            if (value != orig) {
                 window.onMaximizeChange();
             }
         }
@@ -1327,6 +1328,7 @@ version (Wayland):
             return _scaling;
         }
         void scaling(double value) {
+            auto orig = _scaling;
             _scaling = value;
             configureScaling();
             configureSize();
@@ -1338,6 +1340,9 @@ version (Wayland):
                 } else {
                     trace("Integer scaling enabled: scaling = ", _scaling);
                 }
+            }
+            if (orig != value) {
+                window.onScalingChange(_scaling);
             }
         }
         void configureScaling() {

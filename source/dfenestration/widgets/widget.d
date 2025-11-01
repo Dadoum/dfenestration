@@ -77,6 +77,11 @@ abstract class Widget {
     }
 
     /++
+     + Called when the scaling of the window changed.
+     +/
+    void onScalingChange(float scaling) {}
+
+    /++
      + Called when the focus is moved forward, and that the widget could be focused (or is).
      + If it takes focus, the next nextFocus/previousFocus call will also be forwarded to it until it releases the focus.
      + Call unfocus if needed.

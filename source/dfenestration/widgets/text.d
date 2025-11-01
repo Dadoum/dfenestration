@@ -40,11 +40,13 @@ class HorizontalText: Widget {
         return super.onHoverStart(location);
     }
 
-    void onScalingChange(float scaling) {
+    override void onScalingChange(float scaling) {
         this.scaling = scaling;
         if (_face) {
             _face.dpi = 96 * scaling;
         }
+
+        shapingRequired = true;
     }
 
     override void reloadStyle() {
@@ -141,8 +143,6 @@ class HorizontalText: Widget {
         if (shapingRequired) {
             shape();
         }
-        import std.stdio;
-        import std.algorithm;
 
         c.save();
 

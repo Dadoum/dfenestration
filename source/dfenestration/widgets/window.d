@@ -362,6 +362,10 @@ class Window: Container!Widget {
      +/
     @StateGetter double scaling() { return backendWindow.scaling(); }
     @StateSetter Window scaling(double value) { backendWindow.scaling(value); return this; }
+    override void onScalingChange(float scaling) {
+        forall((w) => w.onScalingChange(scaling));
+        invalidate();
+    }
 
     /++
      + Close the window.
