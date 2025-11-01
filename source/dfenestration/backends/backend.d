@@ -12,9 +12,6 @@ import std.process;
 import std.traits;
 import std.typecons;
 
-import bindbc.hb;
-import bindbc.freetype;
-
 import libasync;
 
 import hairetsu;
@@ -30,7 +27,6 @@ enum rendererEnvironmentVariable = "DFRENDERER";
 
 abstract class Backend {
     EventLoop _eventLoop;
-    FT_Library _freetypeLibrary;
 
     int exitCode = 0;
 
@@ -82,24 +78,9 @@ abstract class Backend {
         _defaultFamily = fontCollection.families()[0];
         warning("No known system font found, picked ", _defaultFamily.familyName());
         fontOk:
-
-        FTSupport ftStatus = loadFreeType();
-        HBSupport hbStatus = loadHarfBuzz();
-
-        if (ftStatus <= FTSupport.badLibrary || hbStatus <= HBSupport.badLibrary) {
-            throw new MissingLibraryException(
-                "Cannot load FreeType or HarfBuzz (identified FreeType: %s, identified HarfBuzz: %s)".format(ftStatus, hbStatus)
-            );
-        }
-
-        FT_Init_FreeType(&_freetypeLibrary);
     }
 
-    ~this() {
-        if (_freetypeLibrary) {
-            FT_Done_FreeType(_freetypeLibrary);
-        }
-    }
+    ~this() {}
 
     final int run() {
         while (eventLoop.loop()) {}
@@ -144,10 +125,6 @@ abstract class Backend {
         }
 
         throw new NoRendererException(format!"No renderer is available for %s."(R.stringof));
-    }
-
-    string name(this R)() {
-
     }
 
     abstract BackendWindow createBackendWindow(Window window);

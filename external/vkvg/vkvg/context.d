@@ -6,7 +6,7 @@ import std.logger;
 import std.string;
 
 import dfenestration.renderers.context;
-// import dfenestration.renderers.text.textlayouter;
+import dfenestration.renderers.image;
 
 import vkvg;
 
@@ -116,9 +116,9 @@ class VkVGContext: Context {
         vkvg_paint(handle);
     }
 
-    void clear() {
-        vkvg_clear(handle);//use vkClearAttachment to speed up clearing surf
-    }
+    // void clear() {
+    //     vkvg_clear(handle);//use vkClearAttachment to speed up clearing surf
+    // }
 
     void reclip() {
         vkvg_reset_clip(handle);
@@ -142,6 +142,12 @@ class VkVGContext: Context {
 
     void sourceRgb(float r, float g, float b) {
         vkvg_set_source_rgb(handle, r, g, b);
+    }
+
+    void sourceImage(Image image, float x, float y) {
+        // vkvg_surface_create_from_bitmap(image.buffer, image.width, image.height);
+        // vkvg_set_source_surface(handle, , x, y);
+        warning("sourceImage not implemented for VkVG.");
     }
 
     void lineWidth(float width) {

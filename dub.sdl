@@ -5,12 +5,8 @@ license "proprietary"
 sourcePaths "source"
 dflags "-link-defaultlib-shared=false" platform="ldc"
 
-dependency "arsd-official:color_base" repository="git+https://github.com/Dadoum/arsd.git" version="32c2d2c5baf44afd864bac723a231ffc92df8986"
-dependency "bindbc-freetype" version="~>1.2.6"
-dependency "bindbc-harfbuzz" version="~>0.2.1"
 dependency "dynamic-loader" repository="git+https://github.com/Dadoum/dynamicloader.git" version="1d9eaa74e7d54c395ce4abfc15a9654ebfd9c7d2"
 dependency "libasync" version="~>0.9.7"
-versions "FT_2_12"
 
 dependency "hairetsu" repository="git+https://github.com/Inochi2D/hairetsu.git" version="d088cc1a8da4773938628d87a7720ac9f1e0cfb9"
 
@@ -36,8 +32,7 @@ sourcePaths "external/vkvg"
 versions "VkVG"
 
 dependency "bindbc-gles" version="~>0.0.1"
+dependency "bindbc-opengl" version="~>1.1.1"
 versions "GL_43"
-dependency "arsd-official:nanovega" repository="git+https://github.com/Dadoum/arsd.git" version="32c2d2c5baf44afd864bac723a231ffc92df8986"
-subConfiguration "arsd-official:nanovega" "bindbc"
 sourcePaths "external/nanovega"
-versions "NanoVega" "nanovg_disable_fontconfig"
+versions "NanoVega"

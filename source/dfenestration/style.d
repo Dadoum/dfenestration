@@ -6,13 +6,18 @@ import std.logger;
 
 import hairetsu;
 
+import dfenestration.renderers.image;
+
 struct Style {
     FontFamily _fontFamily;
+    RGBA _textColor = RGBA(0, 0, 0, 1);
 
     this(FontFamily fontFamily) {
         this.fontFamily = fontFamily;
     }
-    
+
+    RGBA textColor() => _textColor;
+
     // ~ Font section ~
     FontFaceInfo[string] _faceInfos;
     Font[string] _fonts;

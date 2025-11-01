@@ -1178,7 +1178,7 @@ version (Wayland):
         void configureIcon() {
             if (auto manager = backend.toplevelIconManager) {
                 if (auto toplevel = xdgWindow.toplevel) {
-                    backend.toplevelIconManager.setIcon(*toplevel, toplevelIcon);
+                    manager.setIcon(*toplevel, toplevelIcon);
                 }
             }
         }
@@ -1595,9 +1595,13 @@ pragma(inline, true) {
 }
 
 pragma(inline, true) WlShm.Format toWlShmFormat(Image.Format format) {
-    with (Image.Format) final switch (format) {
+    with (Image.Format) switch (format) {
         case rgba8888:
             return WlShm.Format.rgba8888;
+        case c8:
+            return WlShm.Format.c8;
+        default:
+            assert(false, "Not implemented");
     }
 }
 

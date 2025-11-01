@@ -1,6 +1,7 @@
 module dfenestration.widgets.text;
 
 import std.logger;
+import std.range;
 
 import hairetsu;
 import hairetsu.shaper.basic;
@@ -8,6 +9,7 @@ import hairetsu.render;
 import hairetsu.render.builtin;
 
 import dfenestration.style;
+import dfenestration.renderers.image;
 import dfenestration.widgets.widget;
 
 alias Text = HorizontalText;
@@ -28,16 +30,29 @@ class HorizontalText: Widget {
     Size _boundingBox;
     uint _baselineHeight;
 
+    Image _renderedText;
+
     bool shapingRequired = true;
+    float scaling = 1.75;
 
     override bool onHoverStart(Point location) {
         window.cursor();
         return super.onHoverStart(location);
     }
 
+    void onScalingChange(float scaling) {
+        this.scaling = scaling;
+        if (_face) {
+            _face.dpi = 96 * scaling;
+        }
+    }
+
     override void reloadStyle() {
         super.reloadStyle();
         _face = style.regularFont().createFace();
+        _face.pt = 13;
+        _face.dpi = 96 * scaling;
+
         shapingRequired = true;
         this.scheduleWindowSizeAllocation();
         this.invalidate();
@@ -54,12 +69,10 @@ class HorizontalText: Widget {
         _textBuffer = new HaBuffer();
         _textBuffer.addUTF8(text);
         shapingRequired = true;
-         this.scheduleWindowSizeAllocation();
+        this.scheduleWindowSizeAllocation();
     }
 
     void shape() {
-        import numem;
-
         HaBasicShaper shaper = new HaBasicShaper();
         shaper.shape(_face, _textBuffer);
 
@@ -68,11 +81,30 @@ class HorizontalText: Widget {
         vec2 textSize = renderer.measureGlyphRun(_face, _textBuffer);
         auto metrics = _face.faceMetrics();
 
-        _baselineHeight = cast(uint) metrics.ascender.x;
-        _boundingBox = Size(cast(uint) textSize.x, cast(uint) (metrics.ascender.x + metrics.descender.x));
+        _baselineHeight = cast(uint) (metrics.ascender.x);
+        _boundingBox = Size(cast(uint) textSize.x, cast(uint) (metrics.ascender.x - metrics.descender.x));
 
-        HaCanvas canvas = new HaCanvas(_boundingBox.width, _boundingBox.height, HaColorFormat.CBPP8);
-        renderer.render(_face, _textBuffer, vec2(0, metrics.ascender.x), canvas);
+        scope HaCanvas canvas = new HaCanvas(_boundingBox.width, _boundingBox.height, HaColorFormat.CBPP8);
+        renderer.render(_face, _textBuffer, vec2(0, textSize.y), canvas);
+        auto image = Image(_boundingBox.width, _boundingBox.height, Image.Format.c8);
+
+        foreach (idx, line; image.lines().enumerate()) {
+            ubyte[] source = cast(ubyte[]) canvas.scanline(cast(int) idx);
+            foreach (pixel, w; line.lockstep(source)) {
+                pixel[] = w;
+            }
+
+            // foreach (pixel, w; line.lockstep(source)) {
+            //     pixel[] = [255, 0, 255, w];
+
+            //     if (idx == _baselineHeight) {
+            //         pixel[] = [0, 255, 255, 255];
+            //     }
+            // }
+        }
+
+        _renderedText = image * style.textColor();
+        trace("Layout OK.");
 
         shapingRequired = false;
     }
@@ -91,10 +123,10 @@ class HorizontalText: Widget {
             shape();
         }
 
-        minimumWidth = _boundingBox.width;
-        naturalWidth = _boundingBox.width;
-        minimumHeight = _boundingBox.height;
-        naturalHeight = _boundingBox.height;
+        minimumWidth = cast(uint) (_boundingBox.width / scaling);
+        naturalWidth = cast(uint) (_boundingBox.width / scaling);
+        minimumHeight = cast(uint) (_boundingBox.height / scaling);
+        naturalHeight = cast(uint) (_boundingBox.height / scaling);
     }
 
     override uint baselineHeight() {
@@ -102,29 +134,29 @@ class HorizontalText: Widget {
             shape();
         }
 
-        return _baselineHeight;
+        return cast(uint) (_baselineHeight / scaling);
     }
 
     override void draw(Context c, Rectangle rectangle) {
         if (shapingRequired) {
             shape();
         }
+        import std.stdio;
+        import std.algorithm;
 
-        /// TODO: text shaping
-        c.sourceRgb(1, 0, 1);
+        c.save();
+
+        {
+            c.scale(1 / scaling, 1 / scaling);
+            c.sourceImage(_renderedText, 0, 0);
+            c.rectangle(0, 0, _boundingBox.tupleof);
+            c.fill();
+        }
+
+        c.restore();
+
         // c.rectangle(0, 0, allocation.size.tupleof);
-        // c.fill();
-        // c.selectFontPath = "/usr/share/fonts/liberation-mono/LiberationMono-Bold.ttf";
-
-        // c.moveTo(20, 0);
-        // foreach (glyph; textLayouter.renderedGlyphs()) {
-        //     if (Rectangle.intersect(Rectangle(glyph.position, glyph.size), rectangle) != Rectangle.zero) {
-        //         c.showGlyph(glyph);
-        //         c.rectangle(glyph.position.tupleof, glyph.size.tupleof);
-        //         // info(glyph);
-        //         c.fill();
-        //     }
-        // }
-        // c.showText(text);
+        // c.sourceRgba(0, 1, 0, 1);
+        // c.stroke();
     }
 }

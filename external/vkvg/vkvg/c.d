@@ -48,11 +48,13 @@ import core.stdc.config;
 
 /** @mainpage Documentation
  *
- * VKVG is an open source 2d vector drawing library written in @b c and using [vulkan](https://www.khronos.org/vulkan/) for hardware acceleration.
+ * VKVG is an open source 2d vector drawing library written in @b c and using [vulkan](https://www.khronos.org/vulkan/)
+ * for hardware acceleration.
  *
  * @image html screenshot3.png
  *
- * Its api is modeled on the [cairo graphic library](https://www.cairographics.org/) with the following software components:
+ * Its api is modeled on the [cairo graphic library](https://www.cairographics.org/) with the following software
+ * components:
  *
  * - @ref surface
  * - @ref context
@@ -61,10 +63,12 @@ import core.stdc.config;
  */
 
 /*! @file vkvg.h
- *	@brief The header of the VKVG library.
+ *	@brief Main header of the VKVG library.
  *
  *	This is the header file of the VKVG library.  It defines all its types and
  *	declares all its functions.
+ *
+ *  To start drawing with vkvg, simply include this header.
  *
  */
 /*! @defgroup surface Surface
@@ -111,12 +115,12 @@ enum vkvg_status_t
 {
     VKVG_STATUS_SUCCESS = 0, /*!< no error occurred.*/
     VKVG_STATUS_NO_MEMORY = 1, /*!< out of memory*/
-    VKVG_STATUS_INVALID_RESTORE = 2, /*!< call to #vkvg_restore without matching call to #vkvg_save*/
-    VKVG_STATUS_NO_CURRENT_POINT = 3, /*!< path command expecting a current point to be defined failed*/
-    VKVG_STATUS_INVALID_MATRIX = 4, /*!< invalid matrix (not invertible)*/
-    VKVG_STATUS_INVALID_STATUS = 5, /*!< */
-    VKVG_STATUS_INVALID_INDEX = 6, /*!< */
-    VKVG_STATUS_NULL_POINTER = 7, /*!< NULL pointer*/
+    VKVG_STATUS_NULL_POINTER = 2, /*!< NULL pointer*/
+    VKVG_STATUS_INVALID_RESTORE = 3, /*!< call to #vkvg_restore without matching call to #vkvg_save*/
+    VKVG_STATUS_NO_CURRENT_POINT = 4, /*!< path command expecting a current point to be defined failed*/
+    VKVG_STATUS_INVALID_MATRIX = 5, /*!< invalid matrix (not invertible)*/
+    VKVG_STATUS_INVALID_STATUS = 6, /*!< */
+    VKVG_STATUS_INVALID_INDEX = 7, /*!< */
     VKVG_STATUS_WRITE_ERROR = 8, /*!< */
     VKVG_STATUS_PATTERN_TYPE_MISMATCH = 9, /*!< */
     VKVG_STATUS_PATTERN_INVALID_GRADIENT = 10, /*!< occurs when stops count is zero */
@@ -126,9 +130,12 @@ enum vkvg_status_t
     VKVG_STATUS_INVALID_RECT = 14, /*!< rectangle with height or width equal to 0. */
     VKVG_STATUS_TIMEOUT = 15, /*!< waiting for a vulkan operation to finish resulted in a fence timeout (5 seconds)*/
     VKVG_STATUS_DEVICE_ERROR = 16, /*!< vkvg device initialization error */
-    VKVG_STATUS_INVALID_IMAGE = 17, /*!< */
-    VKVG_STATUS_INVALID_SURFACE = 18, /*!< */
-    VKVG_STATUS_INVALID_FONT = 19, /*!< Unresolved font name*/
+    VKVG_STATUS_INVALID_DEVICE_CREATE_INFO = 17, /*!< vkvg device initialization error */
+    VKVG_STATUS_INVALID_IMAGE = 18, /*!< */
+    VKVG_STATUS_INVALID_SURFACE = 19, /*!< */
+    VKVG_STATUS_INVALID_FONT = 20, /*!< Unresolved font name*/
+    VKVG_STATUS_IN_CACHE = 21, /*!< This is not an error, context is stored in cache, not usable until recovered for another
+       context creation. */
     VKVG_STATUS_ENUM_MAX = 0x7FFFFFFF
 }
 
@@ -234,42 +241,47 @@ struct vkvg_color_t
 }
 
 /**
-  * @brief font metrics
-  *
-  * structure defining global font metrics for a particular font. It can be retrieve by calling @ref vkvg_font_extents
-  * on a valid context.
-  */
+ * @brief font metrics
+ *
+ * structure defining global font metrics for a particular font. It can be retrieve by calling @ref vkvg_font_extents
+ * on a valid context.
+ */
 struct vkvg_font_extents_t
 {
     float ascent; /*!< the distance that the font extends above the baseline. */
     float descent; /*!< the distance that the font extends below the baseline.*/
     float height; /*!< the recommended vertical distance between baselines. */
-    float max_x_advance; /*!< the maximum distance in the X direction that the origin is advanced for any glyph in the font.*/
-    float max_y_advance; /*!< the maximum distance in the Y direction that the origin is advanced for any glyph in the font. This will be zero for normal fonts used for horizontal writing.*/
+    float max_x_advance; /*!< the maximum distance in the X direction that the origin is advanced for any glyph in the
+       font.*/
+    float max_y_advance; /*!< the maximum distance in the Y direction that the origin is advanced for any glyph in the
+       font. This will be zero for normal fonts used for horizontal writing.*/
 }
 
 /**
-  * @brief text metrics
-  *
-  * structure defining metrics for a single or a string of glyphs. To measure text, call @ref vkvg_text_extents
-  * on a valid context.
-  */
+ * @brief text metrics
+ *
+ * structure defining metrics for a single or a string of glyphs. To measure text, call @ref vkvg_text_extents
+ * on a valid context.
+ */
 struct vkvg_text_extents_t
 {
-    float x_bearing; /*!< the horizontal distance from the origin to the leftmost part of the glyphs as drawn. Positive if the glyphs lie entirely to the right of the origin. */
-    float y_bearing; /*!< the vertical distance from the origin to the topmost part of the glyphs as drawn. Positive only if the glyphs lie completely below the origin; will usually be negative.*/
+    float x_bearing; /*!< the horizontal distance from the origin to the leftmost part of the glyphs as drawn. Positive
+       if the glyphs lie entirely to the right of the origin. */
+    float y_bearing; /*!< the vertical distance from the origin to the topmost part of the glyphs as drawn. Positive
+       only if the glyphs lie completely below the origin; will usually be negative.*/
     float width; /*!< width of the glyphs as drawn*/
     float height; /*!< height of the glyphs as drawn*/
     float x_advance; /*!< distance to advance in the X direction after drawing these glyphs*/
-    float y_advance; /*!< distance to advance in the Y direction after drawing these glyphs. Will typically be zero except for vertical text layout as found in East-Asian languages.*/
+    float y_advance; /*!< distance to advance in the Y direction after drawing these glyphs. Will typically be zero
+       except for vertical text layout as found in East-Asian languages.*/
 }
 
 /**
-  * @brief glyphs position in a @ref VkvgText
-  *
-  * structure defining glyph position as computed for rendering a text run.
-  * the codepoint field is for internal use only.
-  */
+ * @brief glyphs position in a @ref VkvgText
+ *
+ * structure defining glyph position as computed for rendering a text run.
+ * the codepoint field is for internal use only.
+ */
 struct _glyph_info_t
 {
     int x_advance;
@@ -277,7 +289,7 @@ struct _glyph_info_t
     int x_offset;
     int y_offset;
     /* private */
-    uint codepoint; //should be named glyphIndex, but for harfbuzz compatibility...
+    uint codepoint; // should be named glyphIndex, but for harfbuzz compatibility...
 }
 
 alias vkvg_glyph_info_t = _glyph_info_t;
@@ -341,6 +353,7 @@ alias VkvgPattern = _vkvg_pattern_t*;
  *
  * @ingroup device
  */
+/*!< If defined, #vkvg_device_get_stats and #vkvg_device_reset_stats are available.*/
 
 /**< maximum point array size					*/
 /**< maximum path array size					*/
@@ -403,14 +416,7 @@ void vkvg_matrix_init_identity (vkvg_matrix_t* matrix);
  * @param x0 X translation component of the affine transformation
  * @param y0 Y translation component of the affine transformation
  */
-void vkvg_matrix_init (
-    vkvg_matrix_t* matrix,
-    float xx,
-    float yx,
-    float xy,
-    float yy,
-    float x0,
-    float y0);
+void vkvg_matrix_init (vkvg_matrix_t* matrix, float xx, float yx, float xy, float yy, float x0, float y0);
 /**
  * @brief Rotation matrix initialization
  *
@@ -487,14 +493,14 @@ void vkvg_matrix_multiply (vkvg_matrix_t* result, const(vkvg_matrix_t)* a, const
 /**
  * @brief transform distances
  *
- * Transforms the distance vector (dx ,dy ) by matrix . This is similar to #cairo_matrix_transform_point() except that the translation
- * components of the transformation are ignored. The calculation of the returned vector is as follows:
+ * Transforms the distance vector (dx ,dy ) by matrix . This is similar to #cairo_matrix_transform_point() except that
+ * the translation components of the transformation are ignored. The calculation of the returned vector is as follows:
  * @code
  * dx2 = dx1 * a + dy1 * c;
  * dy2 = dx1 * b + dy1 * d;
  * @endcode
- * Affine transformations are position invariant, so the same vector always transforms to the same vector. If (x1 ,y1 ) transforms to (x2 ,y2 )
- * then (x1 +dx1 ,y1 +dy1 ) will transform to (x1 +dx2 ,y1 +dy2 ) for all values of x1 and x2 .
+ * Affine transformations are position invariant, so the same vector always transforms to the same vector. If (x1 ,y1 )
+ * transforms to (x2 ,y2 ) then (x1 +dx1 ,y1 +dy1 ) will transform to (x1 +dx2 ,y1 +dy2 ) for all values of x1 and x2 .
  * @param matrix a valid #vkvg_matrix_t to use to transform distance
  * @param dx X component of a distance vector. An in/out parameter
  * @param dy Y component of a distance vector. An in/out parameter
@@ -542,20 +548,36 @@ void vkvg_matrix_get_scale (const(vkvg_matrix_t)* matrix, float* sx, float* sy);
  * Device holds the font cache so that each time a context draws text, the same cache is used.
  *
  * @{ */
-
 /**
- * @brief Set device ready for multithreading.
+ * @brief vkvg device creation structure
  *
- * If thread aware mode is set to true,
+ * Structure used to pass parameter to the device creation method.
  *
- * This method should be called only once on device creation. If this method is called while some surfaces or patterns are
- * in use, this could have unexpected results.
+ * @code
+ * @endcode
  *
- *
- * @param dev
- * @param thread_awayre
+ * @samples: sample count.
+ * @inst: vulkan instance used to create device, may be null to create a new instance.
+ * @phy: vulkan physical device to create vkvg device for, may be null.
+ * @vkdev: vulkan logical device, may be null to create a new one.
+ * @qFamIdx: graphic queue family index, ignored if vkdev is NULL.
+ * @qIndex: queue index, ignored if vkdev is NULL.
+ * @deferredResolve: If true, the final simple sampled image of the surface will only be resolved on demand
+ * when calling @ref vkvg_surface_get_vk_image or by explicitly calling @ref vkvg_multisample_surface_resolve.
+ * If false, multisampled image is resolved on each draw operation.
  */
-void vkvg_device_set_thread_aware (VkvgDevice dev, uint thread_awayre);
+struct vkvg_device_create_info_t
+{
+    VkSampleCountFlags samples;
+    bool deferredResolve;
+    VkInstance inst;
+    VkPhysicalDevice phy;
+    VkDevice vkdev;
+    uint qFamIdx;
+    uint qIndex;
+    bool threadAware; /**< if true, mutex is created and guard device queue and caches access */
+}
+
 /**
  * @brief Set maximum cached context count.
  *
@@ -569,19 +591,20 @@ void vkvg_device_set_context_cache_size (VkvgDevice dev, uint maxCount);
 /**
  * @brief Create a new vkvg device.
  *
- * Create a new #VkvgDevice owning vulkan instance and device.
+ * Create a new #VkvgDevice.
  *
  * On success, create a new vkvg device and set its reference count to 1.
  * On error, you may query the device status by calling @ref vkvg_device_status. Error could be
  * one of the following:
  * - VKVG_STATUS_INVALID_FORMAT: the combination of image format and tiling is not supported
  * - VKVG_STATUS_NULL_POINTER: vulkan function pointer fetching failed.
+ * - VKVG_STATUS_NO_MEMORY: either info parameter was null or memory allocation for device structure failed.
  *
  * @param samples The sample count that will be setup for the surfaces created by this device.
- * @param deferredResolve If true, the final simple sampled image of the surface will only be resolved on demand with a call
- * to #vkvg_surface_resolve() or
+ * @param deferredResolve If true, the final simple sampled image of the surface will only be resolved on demand with a
+ * call to #vkvg_surface_resolve() or
  */
-VkvgDevice vkvg_device_create (VkSampleCountFlags samples, bool deferredResolve);
+VkvgDevice vkvg_device_create (vkvg_device_create_info_t* info);
 /**
  * @brief Create a new vkvg device from an existing vulkan logical device.
  *
@@ -600,9 +623,7 @@ VkvgDevice vkvg_device_create (VkSampleCountFlags samples, bool deferredResolve)
  * @param qFamIdx Queue family Index of the graphic queue used for drawing operations.
  * @param qIndex Index of the queue into the choosen familly, 0 in general.
  * @return The handle of the created vkvg device, or null if an error occured.
- */
-VkvgDevice vkvg_device_create_from_vk (VkInstance inst, VkPhysicalDevice phy, VkDevice vkdev, uint qFamIdx, uint qIndex);
-/**
+
  * @brief Create a new multisampled vkvg device.
  *
  * This function allows to create vkvg device for working with multisampled surfaces.
@@ -616,11 +637,10 @@ VkvgDevice vkvg_device_create_from_vk (VkInstance inst, VkPhysicalDevice phy, Vk
  * @param qFamIdx Queue family Index of the graphic queue used for drawing operations.
  * @param qIndex Index of the queue into the choosen familly, 0 in general.
  * @param samples The sample count that will be setup for the surfaces created by this device.
- * @param deferredResolve If true, the final simple sampled image of the surface will only be resolved on demand
- * when calling @ref vkvg_surface_get_vk_image or by explicitly calling @ref vkvg_multisample_surface_resolve. If false, multisampled image is resolved on each draw operation.
+
  * @return The handle of the created vkvg device, or null if an error occured.
  */
-VkvgDevice vkvg_device_create_from_vk_multisample (VkInstance inst, VkPhysicalDevice phy, VkDevice vkdev, uint qFamIdx, uint qIndex, VkSampleCountFlags samples, bool deferredResolve);
+
 /**
  * @brief Decrement the reference count of the device by 1. Release all its resources if count reaches 0.
  *
@@ -643,7 +663,7 @@ vkvg_status_t vkvg_device_status (VkvgDevice dev);
  * @brief Increment the reference count on this device.
  *
  * Increment by one the reference count on the device.
- * @param The vkvg device pointer to increment the reference count for.
+ * @param dev The vkvg device pointer to increment the reference count for.
  * @return
  */
 VkvgDevice vkvg_device_reference (VkvgDevice dev);
@@ -690,8 +710,11 @@ void vkvg_get_required_instance_extensions (const(char*)* pExtensions, uint* pEx
  * by calling this method with pExtension being a NULL pointer.
  * @param pExtCount a valid pointer to an integer that will be fill with the required extension count.
  * @return #VKVG_STATUS_SUCCESS or #VKVG_STATUS_DEVICE_ERROR if a fatal error occured.
-*/
-vkvg_status_t vkvg_get_required_device_extensions (VkPhysicalDevice phy, const(char*)* pExtensions, uint* pExtCount);
+ */
+vkvg_status_t vkvg_get_required_device_extensions (
+    VkPhysicalDevice phy,
+    const(char*)* pExtensions,
+    uint* pExtCount);
 /**
  * @brief get vulkan device creation requirement to fit vkvg needs.
  *
@@ -741,30 +764,34 @@ VkvgSurface vkvg_surface_create_for_VkhImage (VkvgDevice dev, void* vkhImg);
  * @param height the height of the provided bitmap.
  * @return
  */
-VkvgSurface vkvg_surface_create_from_bitmap (VkvgDevice dev, ubyte* img, uint width, uint height);
+VkvgSurface vkvg_surface_create_from_bitmap (
+    VkvgDevice dev,
+    ubyte* img,
+    uint width,
+    uint height);
 /**
  * @brief Increment reference count on the surface by one.
- * @param The vkvg surface to increment the reference count for.
+ * @param surf The vkvg surface to increment the reference count for.
  * @return ?
  */
 VkvgSurface vkvg_surface_reference (VkvgSurface surf);
 /**
  * @brief Get the current reference count on this surface.
- * @param The vkvg surface to get the reference count for.
+ * @param surf The vkvg surface to get the reference count for.
  * @return The reference count on the surface.
  */
 uint vkvg_surface_get_reference_count (VkvgSurface surf);
 /**
  * @brief Decrement the reference count on the surface by one. Destroy it if count reach 0.
- * @param The vkvg surface to destroy.
+ * @param surf The vkvg surface to destroy.
  */
 void vkvg_surface_destroy (VkvgSurface surf);
-// /**
-//  * @brief Query the current status of the surface.
-//  * @param The vkvg surface to query the status for.
-//  * @return The current surface status.
-//  */
-// vkvg_status_t vkvg_surface_status (VkvgSurface surf);
+/**
+ * @brief Query the current status of the surface.
+ * @param surf The vkvg surface to query the status for.
+ * @return The current surface status.
+ */
+vkvg_status_t vkvg_surface_status (VkvgSurface surf);
 /**
  * @brief Clear surface's content.
  *
@@ -773,44 +800,44 @@ void vkvg_surface_destroy (VkvgSurface surf);
  *
  * @remark Internaly, the vulkan method used to clear the surface is the slowest, prefer using the @ref vkvg_clear
  * function of the context that will try to use the render pass load operations when possible.
- * @param The surface to clear.
+ * @param surf The surface to clear.
  */
 void vkvg_surface_clear (VkvgSurface surf);
 /**
  * @brief Get the final single sampled vulkan image of this surface.
- * @param The vkvg surface to get the vulkan texture of.
+ * @param surf The vkvg surface to get the vulkan texture of.
  * @return The VkImage object containing the result of the drawing operations on the surface.
  */
 VkImage vkvg_surface_get_vk_image (VkvgSurface surf);
 /**
  * @brief Get the vulkan format of the vulkan texture used as backend for this surface.
- * @param The surface to get the format for.
+ * @param surf The surface to get the format for.
  * @return The VkFormat.
  */
 VkFormat vkvg_surface_get_vk_format (VkvgSurface surf);
 /**
  * @brief Get the actual surface width.
- * @param The vkvg surface to get the width for.
+ * @param surf The vkvg surface to get the width for.
  * @return The width in pixel of the surface.
  */
 uint vkvg_surface_get_width (VkvgSurface surf);
 /**
  * @brief Get the actual surface height.
- * @param The vkvg surface to get the height for.
+ * @param surf The vkvg surface to get the height for.
  * @return The height in pixel of the surface.
  */
 uint vkvg_surface_get_height (VkvgSurface surf);
 /**
  * @brief Write surface content to a png file on disk.
- * @param The surface to save on disk.
- * @param The png file path.
+ * @param surf The surface to save on disk.
+ * @param path The png file path.
  * @return SUCCESS or not.
  */
 vkvg_status_t vkvg_surface_write_to_png (VkvgSurface surf, const(char)* path);
 /**
  * @brief Save surface to memory
- * @param The surface to save
- * @param A valid pointer on cpu memory large enough to contain surface pixels (stride * height)
+ * @param surf The surface to save
+ * @param bitmap A valid pointer on cpu memory large enough to contain surface pixels (stride * height)
  * @return SUCCESS or not.
  */
 vkvg_status_t vkvg_surface_write_to_memory (VkvgSurface surf, ubyte* bitmap);
@@ -820,15 +847,15 @@ vkvg_status_t vkvg_surface_write_to_memory (VkvgSurface surf, ubyte* bitmap);
  * Multisampled surfaces are backed internally by 2 vulkan textures, one multisampled for internal use only, and one
  * single sampled texture onto which the multisampled one is resolved.
  * If #VkvgDevice is created with `deferredResolve` set to `false`, multisampled image is automatically resolved on each
- * draw call. If `deferredResolve` is set to `true`, multisampled image will be resolved only with a call to #vkvg_surface_resolve() or
- * by a call to #vkvg_surface_get_vk_image().
+ * draw call. If `deferredResolve` is set to `true`, multisampled image will be resolved only with a call to
+ * #vkvg_surface_resolve() or by a call to #vkvg_surface_get_vk_image().
  *
  * @param surf The multisampled surface to resolve.
  */
 void vkvg_surface_resolve (VkvgSurface surf);
 /** @}*/
 
-//mimic from cairo, to facilitate usage of vkvg as cairo vulkan backend
+// mimic from cairo, to facilitate usage of vkvg as cairo vulkan backend
 
 /**
  * @brief compositing operators
@@ -842,35 +869,35 @@ enum _vkvg_operator
     VKVG_OPERATOR_SOURCE = 1,
     VKVG_OPERATOR_OVER = 2,
     /*	VKVG_OPERATOR_IN,
-    	VKVG_OPERATOR_OUT,
-    	VKVG_OPERATOR_ATOP,
+        VKVG_OPERATOR_OUT,
+        VKVG_OPERATOR_ATOP,
 
-    	VKVG_OPERATOR_DEST,
-    	VKVG_OPERATOR_DEST_OVER,
-    	VKVG_OPERATOR_DEST_IN,
-    	VKVG_OPERATOR_DEST_OUT,
-    	VKVG_OPERATOR_DEST_ATOP,
+        VKVG_OPERATOR_DEST,
+        VKVG_OPERATOR_DEST_OVER,
+        VKVG_OPERATOR_DEST_IN,
+        VKVG_OPERATOR_DEST_OUT,
+        VKVG_OPERATOR_DEST_ATOP,
 
-    	VKVG_OPERATOR_XOR,
-    	VKVG_OPERATOR_ADD,
-    	VKVG_OPERATOR_SATURATE,
+        VKVG_OPERATOR_XOR,
+        VKVG_OPERATOR_ADD,
+        VKVG_OPERATOR_SATURATE,
 
-    	VKVG_OPERATOR_MULTIPLY,
-    	VKVG_OPERATOR_SCREEN,
-    	VKVG_OPERATOR_OVERLAY,
-    	VKVG_OPERATOR_DARKEN,
-    	VKVG_OPERATOR_LIGHTEN,
-    	VKVG_OPERATOR_COLOR_DODGE,
-    	VKVG_OPERATOR_COLOR_BURN,
-    	VKVG_OPERATOR_HARD_LIGHT,
-    	VKVG_OPERATOR_SOFT_LIGHT,
-    	*/
+        VKVG_OPERATOR_MULTIPLY,
+        VKVG_OPERATOR_SCREEN,
+        VKVG_OPERATOR_OVERLAY,
+        VKVG_OPERATOR_DARKEN,
+        VKVG_OPERATOR_LIGHTEN,
+        VKVG_OPERATOR_COLOR_DODGE,
+        VKVG_OPERATOR_COLOR_BURN,
+        VKVG_OPERATOR_HARD_LIGHT,
+        VKVG_OPERATOR_SOFT_LIGHT,
+        */
     VKVG_OPERATOR_DIFFERENCE = 3, /*
-    	VKVG_OPERATOR_EXCLUSION,
-    	VKVG_OPERATOR_HSL_HUE,
-    	VKVG_OPERATOR_HSL_SATURATION,
-    	VKVG_OPERATOR_HSL_COLOR,
-    	VKVG_OPERATOR_HSL_LUMINOSITY,*/
+    VKVG_OPERATOR_EXCLUSION,
+    VKVG_OPERATOR_HSL_HUE,
+    VKVG_OPERATOR_HSL_SATURATION,
+    VKVG_OPERATOR_HSL_COLOR,
+    VKVG_OPERATOR_HSL_LUMINOSITY,*/
     VKVG_OPERATOR_MAX = 4
 }
 
@@ -882,9 +909,10 @@ alias vkvg_operator_t = _vkvg_operator;
 /**
  * @brief Create a new vkvg context used for drawing on surfaces.
  *
- * Creates a new #VkvgContext with all graphics state parameters set to default values and with surf as a target surface.
- * This method will always return a valid pointer even if memory allocation failed.
- * @remark This function references surf, so you can immediately call #vkvg_surface_destroy() on it if you don't need to maintain a separate reference to it.
+ * Creates a new #VkvgContext with all graphics state parameters set to default values and with surf as a target
+ * surface. This method will always return a valid pointer even if memory allocation failed.
+ * @remark This function references surf, so you can immediately call #vkvg_surface_destroy() on it if you don't need to
+ * maintain a separate reference to it.
  * @param surf The target surface of the drawing operations.
  * @return A new #VkvgContext or null if an error occured.
  */
@@ -1031,17 +1059,19 @@ void vkvg_rel_move_to (VkvgContext ctx, float x, float y);
 /**
  * @brief Adds a circular arc of the given radius to the current path.
  *
- * Adds a circular arc in clockwise order of the given radius to the current path following angles of a trigonometric circle.
- * After this call the current point will be the last computed point of the arc.
- * The arc is centered at (xc , yc ), begins at angle a1 and proceeds in the direction of increasing angles to end at angle a2.
- * If a2 is less than a1, it will be progressively increased by 2*PI until it is greater than a1.
+ * Adds a circular arc in clockwise order of the given radius to the current path following angles of a trigonometric
+ * circle. After this call the current point will be the last computed point of the arc. The arc is centered at (xc , yc
+ * ), begins at angle a1 and proceeds in the direction of increasing angles to end at angle a2. If a2 is less than a1,
+ * it will be progressively increased by 2*PI until it is greater than a1.
  *
- * If there is a current point, an initial line segment will be added to the path to connect the current point to the beginning of the arc.
- * If this initial line is undesired, it can be avoided by calling vkvg_new_sub_path() before calling vkvg_arc().
+ * If there is a current point, an initial line segment will be added to the path to connect the current point to the
+ * beginning of the arc. If this initial line is undesired, it can be avoided by calling vkvg_new_sub_path() before
+ * calling vkvg_arc().
  *
  * Angles are measured in radians. An angle of 0.0 is in the direction of the positive X axis.
  * An angle of PI/2 radians (90 degrees) is in the direction of the positive Y axis. Angles increase in the direction
- * from the positive X axis toward the positive Y axis. So with the default transformation matrix, angles increase in a clockwise direction.
+ * from the positive X axis toward the positive Y axis. So with the default transformation matrix, angles increase in a
+ * clockwise direction.
  *
  * @remark To convert from degrees to radians, use degrees * (PI/180).
  * @param ctx The vkvg context pointer.
@@ -1055,9 +1085,9 @@ void vkvg_arc (VkvgContext ctx, float xc, float yc, float radius, float a1, floa
 /**
  * @brief Add a circular arc in counter clockwise order to the current path.
  *
- * Adds a circular arc in counter clockwise order of the given radius to the current path following angles of a trigonometric circle.
- * After this call the current point will be the last computed point of the arc.
- * The arc is centered at `(xc,yc)`, begins at angle `a1` and proceeds in the direction of decreasing angles to end at angle `a2`.
+ * Adds a circular arc in counter clockwise order of the given radius to the current path following angles of a
+ * trigonometric circle. After this call the current point will be the last computed point of the arc. The arc is
+ * centered at `(xc,yc)`, begins at angle `a1` and proceeds in the direction of decreasing angles to end at angle `a2`.
  * If `a2` is greater than `a1`, it will be progressively decreased by `2*PI` until it is less than `a1`.
  *
  *
@@ -1073,10 +1103,11 @@ void vkvg_arc_negative (VkvgContext ctx, float xc, float yc, float radius, float
 /**
  * @brief Adds a cubic Bézier spline to the current path.
  *
- * Adds a cubic Bezier spline to the path from the current point to position (x3, y3), using (x1, y1) and (x2, y2) as the control points.
- * After this call the current point will be (x3, y3).
+ * Adds a cubic Bezier spline to the path from the current point to position (x3, y3), using (x1, y1) and (x2, y2) as
+ * the control points. After this call the current point will be (x3, y3).
  *
- * If there is no current point before the call to vkvg_curve_to() this function will behave as if preceded by a call to vkvg_move_to(ctx, x1, y1).
+ * If there is no current point before the call to vkvg_curve_to() this function will behave as if preceded by a call to
+ * vkvg_move_to(ctx, x1, y1).
  * @param ctx The vkvg context pointer.
  * @param x1 The X coordinate of the first control point.
  * @param y1 The Y coordinate of the first control point.
@@ -1089,9 +1120,9 @@ void vkvg_curve_to (VkvgContext ctx, float x1, float y1, float x2, float y2, flo
 /**
  * @brief Adds a cubic Bézier spline to the current path relative to the current point.
  *
- * Adds a cubic Bézier spline to the path from the current point to position (x3, y3) in relative coordinate to the current point,
- * using (x1, y1) and (x2, y2) as the control points relative to the current point.
- * After this call the current point will be (x3, y3).
+ * Adds a cubic Bézier spline to the path from the current point to position (x3, y3) in relative coordinate to the
+ * current point, using (x1, y1) and (x2, y2) as the control points relative to the current point. After this call the
+ * current point will be (x3, y3).
  *
  * If there is no current point before the call to vkvg_rel_curve_to() => error:VKVG_STATUS_NO_CURRENT_POINT.
  * @param ctx The vkvg context pointer.
@@ -1106,7 +1137,8 @@ void vkvg_rel_curve_to (VkvgContext ctx, float x1, float y1, float x2, float y2,
 /**
  * @brief Add a quadratic Bezizer curve to the current path
  *
- * If there is no current point before the call to vkvg_quadratic_to() this function will behave as if preceded by a call to vkvg_move_to(ctx, x1, y1).
+ * If there is no current point before the call to vkvg_quadratic_to() this function will behave as if preceded by a
+ * call to vkvg_move_to(ctx, x1, y1).
  * @param ctx The vkvg context pointer.
  * @param x1 The X coordinate of the control point.
  * @param y1 The Y coordinate of the control point.
@@ -1137,31 +1169,31 @@ void vkvg_rel_quadratic_to (VkvgContext ctx, float x1, float y1, float x2, float
  */
 vkvg_status_t vkvg_rectangle (VkvgContext ctx, float x, float y, float w, float h);
 /**
-* @brief Add an axis aligned rectangle with rounded corners to the current path.
-*
-* Adds a closed sub-path rectangle of the given size to the current path at position (x, y).
-* @param ctx The vkvg context pointer.
-* @param x The x coordinate of the top left corner of the rectangle to emit.
-* @param y The y coordinate of the top left corner of the rectangle to emit.
-* @param w The width in pixel of the rectangle to draw.
-* @param h The height in pixel of the rectangle to draw.
-* @param radius The radius of the corners.
-* @return VKVG_STATUS_SUCCESS or VKVG_STATUS_INVALID_RECT if width or height is equal to 0.
-*/
+ * @brief Add an axis aligned rectangle with rounded corners to the current path.
+ *
+ * Adds a closed sub-path rectangle of the given size to the current path at position (x, y).
+ * @param ctx The vkvg context pointer.
+ * @param x The x coordinate of the top left corner of the rectangle to emit.
+ * @param y The y coordinate of the top left corner of the rectangle to emit.
+ * @param w The width in pixel of the rectangle to draw.
+ * @param h The height in pixel of the rectangle to draw.
+ * @param radius The radius of the corners.
+ * @return VKVG_STATUS_SUCCESS or VKVG_STATUS_INVALID_RECT if width or height is equal to 0.
+ */
 vkvg_status_t vkvg_rounded_rectangle (VkvgContext ctx, float x, float y, float w, float h, float radius);
 /**
-* @brief Add an axis aligned rectangle with rounded corners defined in both axis to the current path.
-*
-* Adds a closed sub-path rectangle of the given size to the current path at position (x, y).
-* @param ctx The vkvg context pointer.
-* @param x The x coordinate of the top left corner of the rectangle to emit.
-* @param y The y coordinate of the top left corner of the rectangle to emit.
-* @param w The width in pixel of the rectangle to draw.
-* @param h The height in pixel of the rectangle to draw.
-* @param rx The horizontal radius of the corners.
-* @param ry The vertical radius of the corners.
-* @return VKVG_STATUS_SUCCESS or VKVG_STATUS_INVALID_RECT if width or height is equal to 0.
-*/
+ * @brief Add an axis aligned rectangle with rounded corners defined in both axis to the current path.
+ *
+ * Adds a closed sub-path rectangle of the given size to the current path at position (x, y).
+ * @param ctx The vkvg context pointer.
+ * @param x The x coordinate of the top left corner of the rectangle to emit.
+ * @param y The y coordinate of the top left corner of the rectangle to emit.
+ * @param w The width in pixel of the rectangle to draw.
+ * @param h The height in pixel of the rectangle to draw.
+ * @param rx The horizontal radius of the corners.
+ * @param ry The vertical radius of the corners.
+ * @return VKVG_STATUS_SUCCESS or VKVG_STATUS_INVALID_RECT if width or height is equal to 0.
+ */
 void vkvg_rounded_rectangle2 (VkvgContext ctx, float x, float y, float w, float h, float rx, float ry);
 
 /**
@@ -1180,11 +1212,11 @@ void vkvg_ellipse (VkvgContext ctx, float radiusX, float radiusY, float x, float
 /**
  * @brief Add an elliptical arc to the current path.
  *
- * Draws an elliptical arc from the current point to (x, y). The size and orientation of the ellipse are defined by two radii (rx, ry)
- * and an x-axis-rotation, which indicates how the ellipse as a whole is rotated relative to the current coordinate system.
- * The center (cx, cy) of the ellipse is calculated automatically to satisfy the constraints imposed by the other parameters.
- * For a given radii pair, there are two ellipses that could connect two random points. large-arc-flag and sweep-flag contribute
- * to the automatic calculations and help determine how the arc is drawn.
+ * Draws an elliptical arc from the current point to (x, y). The size and orientation of the ellipse are defined by two
+ * radii (rx, ry) and an x-axis-rotation, which indicates how the ellipse as a whole is rotated relative to the current
+ * coordinate system. The center (cx, cy) of the ellipse is calculated automatically to satisfy the constraints imposed
+ * by the other parameters. For a given radii pair, there are two ellipses that could connect two random points.
+ * large-arc-flag and sweep-flag contribute to the automatic calculations and help determine how the arc is drawn.
  *
  * @image html elliptical-arc-options.svg
  *
@@ -1197,11 +1229,20 @@ void vkvg_ellipse (VkvgContext ctx, float radiusX, float radiusY, float x, float
  * @param ry The y radius of the ellipse.
  * @param phi Clockwise rotation of the arc in radian.
  */
-void vkvg_elliptic_arc_to (VkvgContext ctx, float x, float y, bool large_arc_flag, bool sweep_flag, float rx, float ry, float phi);
+void vkvg_elliptic_arc_to (
+    VkvgContext ctx,
+    float x,
+    float y,
+    bool large_arc_flag,
+    bool sweep_flag,
+    float rx,
+    float ry,
+    float phi);
 /**
  * @brief Add an elliptical arc to the current path.
  *
- * This method has the same effect as a call to #vkvg_elliptic_arc_to except that the coordinate are expressed relative to the current point.
+ * This method has the same effect as a call to #vkvg_elliptic_arc_to except that the coordinate are expressed relative
+ * to the current point.
  * @param ctx A valid context handle.
  * @param x the arc end point x coordinate relative to the current point.
  * @param y the arc end point y coordinate relative to the current point.
@@ -1211,13 +1252,21 @@ void vkvg_elliptic_arc_to (VkvgContext ctx, float x, float y, bool large_arc_fla
  * @param ry The y radius of the ellipse.
  * @param phi Clockwise rotation of the arc in radian.
  */
-void vkvg_rel_elliptic_arc_to (VkvgContext ctx, float x, float y, bool large_arc_flag, bool sweep_flag, float rx, float ry, float phi);
+void vkvg_rel_elliptic_arc_to (
+    VkvgContext ctx,
+    float x,
+    float y,
+    bool large_arc_flag,
+    bool sweep_flag,
+    float rx,
+    float ry,
+    float phi);
 /**
  * @brief Stroke command
  *
- * A drawing operator that strokes the current path according to the current line width, line join, line cap, and dash settings.
- * After vkvg_stroke(), the current path will be cleared from the vkvg context. See #vkvg_set_line_width(), #vkvg_set_line_join(),
- * #vkvg_set_line_cap(), #vkvg_set_dash(), and #vkvg_stroke_preserve().
+ * A drawing operator that strokes the current path according to the current line width, line join, line cap, and dash
+ * settings. After vkvg_stroke(), the current path will be cleared from the vkvg context. See #vkvg_set_line_width(),
+ * #vkvg_set_line_join(), #vkvg_set_line_cap(), #vkvg_set_dash(), and #vkvg_stroke_preserve().
  *
  * @param ctx a valid vkvg @ref context
  */
@@ -1266,7 +1315,7 @@ void vkvg_paint (VkvgContext ctx);
  * @remark To clear a surface not bound to a context, call #vkvg_surface_clear().
  * @param ctx a valid vkvg @ref context
  */
-void vkvg_clear (VkvgContext ctx); //use vkClearAttachment to speed up clearing surf
+void vkvg_clear (VkvgContext ctx); // use vkClearAttachment to speed up clearing surf
 /**
  * @brief Reset the current clip region.
  *
@@ -1278,16 +1327,18 @@ void vkvg_reset_clip (VkvgContext ctx);
 /**
  * @brief Establishes a new clip region.
  *
- * Establishes a new clip region by intersecting the current clip region with the current path as it would be filled by @ref vkvg_fill() and
- * according to the current fill rule (@ref vkvg_set_fill_rule()).
+ * Establishes a new clip region by intersecting the current clip region with the current path as it would be filled by
+ * @ref vkvg_fill() and according to the current fill rule (@ref vkvg_set_fill_rule()).
  *
- * The current clip region affects all drawing operations by effectively masking out any changes to the surface that are outside the current clip region.
+ * The current clip region affects all drawing operations by effectively masking out any changes to the surface that are
+ * outside the current clip region.
  *
  * After vkvg_clip(), the current path will be cleared from the context.
  *
- * Calling vkvg_clip() can only make the clip region smaller, never larger. But the current clip is part of the graphics state,
- * so a temporary restriction of the clip region can be achieved by calling @ref vkvg_clip() within a @ref vkvg_save()/@ref vkvg_restore() pair.
- * The only other means of increasing the size of the clip region is @ref vkvg_reset_clip().
+ * Calling vkvg_clip() can only make the clip region smaller, never larger. But the current clip is part of the graphics
+ * state, so a temporary restriction of the clip region can be achieved by calling @ref vkvg_clip() within a @ref
+ * vkvg_save()/@ref vkvg_restore() pair. The only other means of increasing the size of the clip region is @ref
+ * vkvg_reset_clip().
  * @param ctx a valid vkvg @ref context
  */
 void vkvg_clip (VkvgContext ctx);
@@ -1349,56 +1400,6 @@ void vkvg_set_source_rgba (VkvgContext ctx, float r, float g, float b, float a);
  */
 void vkvg_set_source_rgb (VkvgContext ctx, float r, float g, float b);
 /**
- * @brief set line width for the next draw command.
- *
- * Set the current line width for the targeted context. All further calls to #vkvg_stroke on this context
- * will use this new width.
- *
- * @param ctx a valid vkvg @ref context
- * @param width new current line width for the context.
- */
-void vkvg_set_line_width (VkvgContext ctx, float width);
-/**
- * @brief set line join miter size limit.
- *
- * If the current line join style is set to VKVG_LINE_JOIN_MITER (see vkvg_set_line_join()), the miter limit is used to determine whether the lines should be
- * joined with a bevel instead of a miter. Vkvg divides the length of the miter by the line width. If the result is greater than the miter limit, the style is converted to a bevel.
- *
- * The default miter limit value is 10.0, which will convert joins with interior angles less than 11 degrees to bevels instead of miters.
- * For reference, a miter limit of 2.0 makes the miter cutoff at 60 degrees, and a miter limit of 1.414 makes the cutoff at 90 degrees.
- *
- * A miter limit for a desired angle can be computed as: miter limit = 1/sin(angle/2)
- *
- * @param ctx a valid vkvg @ref context
- * @param limit new current miter limit value for the context.
- */
-void vkvg_set_miter_limit (VkvgContext ctx, float limit);
-// /**
-//  * @brief Gets the current miter limit.
-//  *
-//  * Gets the current miter limit, as set by @ref vkvg_set_miter_limit().
-//  *
-//  * @param ctx a valid vkvg @ref context
-//  * @return the current miter limit for the context.
-//  */
-// float vkvg_get_miter_limit (VkvgContext ctx);
-/**
- * @brief set line terminations for the next draw command.
- *
- * Configure the line terminations to output for further path stroke commands.
- * @param ctx a valid vkvg @ref context
- * @param cap new line termination, may be one of the value of #vkvg_line_cap_t.
- */
-void vkvg_set_line_cap (VkvgContext ctx, vkvg_line_cap_t cap);
-/**
- * @brief set line joins for the next draw command.
- *
- * Configure the line join to output for further path stroke commands.
- * @param ctx a valid vkvg @ref context
- * @param join new line join as defined in #vkvg_line_joint_t.
- */
-void vkvg_set_line_join (VkvgContext ctx, vkvg_line_join_t join);
-/**
  * @brief use supplied surface as current pattern.
  *
  * set #VkvgSurface as the current context source.
@@ -1416,6 +1417,58 @@ void vkvg_set_source_surface (VkvgContext ctx, VkvgSurface surf, float x, float 
  * @param pat the new pattern to use as source for further drawing operations.
  */
 void vkvg_set_source (VkvgContext ctx, VkvgPattern pat);
+/**
+ * @brief set line width for the next draw command.
+ *
+ * Set the current line width for the targeted context. All further calls to #vkvg_stroke on this context
+ * will use this new width.
+ *
+ * @param ctx a valid vkvg @ref context
+ * @param width new current line width for the context.
+ */
+void vkvg_set_line_width (VkvgContext ctx, float width);
+/**
+ * @brief set line join miter size limit.
+ *
+ * If the current line join style is set to VKVG_LINE_JOIN_MITER (see vkvg_set_line_join()), the miter limit is used to
+ * determine whether the lines should be joined with a bevel instead of a miter. Vkvg divides the length of the miter by
+ * the line width. If the result is greater than the miter limit, the style is converted to a bevel.
+ *
+ * The default miter limit value is 10.0, which will convert joins with interior angles less than 11 degrees to bevels
+ * instead of miters. For reference, a miter limit of 2.0 makes the miter cutoff at 60 degrees, and a miter limit
+ * of 1.414 makes the cutoff at 90 degrees.
+ *
+ * A miter limit for a desired angle can be computed as: miter limit = 1/sin(angle/2)
+ *
+ * @param ctx a valid vkvg @ref context
+ * @param limit new current miter limit value for the context.
+ */
+void vkvg_set_miter_limit (VkvgContext ctx, float limit);
+/**
+ * @brief Gets the current miter limit.
+ *
+ * Gets the current miter limit, as set by @ref vkvg_set_miter_limit().
+ *
+ * @param ctx a valid vkvg @ref context
+ * @return the current miter limit for the context.
+ */
+float vkvg_get_miter_limit (VkvgContext ctx);
+/**
+ * @brief set line terminations for the next draw command.
+ *
+ * Configure the line terminations to output for further path stroke commands.
+ * @param ctx a valid vkvg @ref context
+ * @param cap new line termination, may be one of the value of #vkvg_line_cap_t.
+ */
+void vkvg_set_line_cap (VkvgContext ctx, vkvg_line_cap_t cap);
+/**
+ * @brief set line joins for the next draw command.
+ *
+ * Configure the line join to output for further path stroke commands.
+ * @param ctx a valid vkvg @ref context
+ * @param join new line join as defined in #vkvg_line_joint_t.
+ */
+void vkvg_set_line_join (VkvgContext ctx, vkvg_line_join_t join);
 /**
  * @brief
  *
@@ -1547,7 +1600,8 @@ void vkvg_restore (VkvgContext ctx);
 /**
  * @brief Add a translation to the current transformation matrix.
  *
- * Modifies the current transformation matrix by applying an additional translation transformation by (dx,dy) in user space coordinate.
+ * Modifies the current transformation matrix by applying an additional translation transformation by (dx,dy) in user
+ * space coordinate.
  * @param ctx a valid vkvg @ref context
  * @param dx the x translation
  * @param dy the y translation
@@ -1556,7 +1610,8 @@ void vkvg_translate (VkvgContext ctx, float dx, float dy);
 /**
  * @brief Add a scaling transform to the current transformation matrix.
  *
- * Modifies the current transformation matrix by applying an additional scaling transformation by (sx,sy) in user space coordinate.
+ * Modifies the current transformation matrix by applying an additional scaling transformation by (sx,sy) in user space
+ * coordinate.
  * @param ctx a valid vkvg @ref context
  * @param sx scale in the x direction.
  * @param sy scale in the y direction.
@@ -1629,7 +1684,11 @@ void vkvg_load_font_from_path (VkvgContext ctx, const(char)* path, const(char)* 
  * @param fontBufferByteSize the size of the font buffer in bytes.
  * @param name A short name to select this font afteward
  */
-void vkvg_load_font_from_memory (VkvgContext ctx, ubyte* fontBuffer, c_long fontBufferByteSize, const(char)* name);
+void vkvg_load_font_from_memory (
+    VkvgContext ctx,
+    ubyte* fontBuffer,
+    c_long fontBufferByteSize,
+    const(char)* name);
 /**
  * @brief
  *
@@ -1663,7 +1722,7 @@ void vkvg_text_extents (VkvgContext ctx, const(char)* utf8, vkvg_text_extents_t*
  */
 void vkvg_font_extents (VkvgContext ctx, vkvg_font_extents_t* extents);
 
-    //text run holds harfbuz datas, and prevent recreating them multiple times for the same line of text.
+// text run holds harfbuz datas, and prevent recreating them multiple times for the same line of text.
 /**
  * @brief Create a new text run.
  *
@@ -1711,10 +1770,7 @@ uint vkvg_text_run_get_glyph_count (VkvgText textRun);
  * @brief retrieve glyph positions.
  *
  */
-void vkvg_text_run_get_glyph_position (
-    VkvgText textRun,
-    uint index,
-    vkvg_glyph_info_t* pGlyphInfo);
+void vkvg_text_run_get_glyph_position (VkvgText textRun, uint index, vkvg_glyph_info_t* pGlyphInfo);
 /** @}*/
 
 /**
@@ -1853,8 +1909,8 @@ vkvg_status_t vkvg_pattern_get_color_stop_count (VkvgPattern pat, uint* count);
 /**
  * @brief get color stop.
  *
- * Gets the color and offset information at the given index for a gradient pattern. Values of index range from 0 to n-1 where n is the number
- * returned by @ref vkvg_pattern_get_color_stop_count().
+ * Gets the color and offset information at the given index for a gradient pattern. Values of index range from 0 to n-1
+ * where n is the number returned by @ref vkvg_pattern_get_color_stop_count().
  *
  * @param pat a valid pattern pointer.
  * @param index index of the stop to return data for.
@@ -1863,7 +1919,8 @@ vkvg_status_t vkvg_pattern_get_color_stop_count (VkvgPattern pat, uint* count);
  * @param g a valid float pointer to old the green component.
  * @param b a valid float pointer to old the blue component.
  * @param a a valid float pointer to old the alpha component.
- * @return VKVG_STATUS_SUCCESS, VKVG_STATUS_PATTERN_TYPE_MISMATCH if the pattern is not a gradient, VKVG_STATUS_INVALID_INDEX if index is out of bounds.
+ * @return VKVG_STATUS_SUCCESS, VKVG_STATUS_PATTERN_TYPE_MISMATCH if the pattern is not a gradient,
+ * VKVG_STATUS_INVALID_INDEX if index is out of bounds.
  */
 vkvg_status_t vkvg_pattern_get_color_stop_rgba (
     VkvgPattern pat,
@@ -1895,7 +1952,13 @@ void vkvg_pattern_destroy (VkvgPattern pat);
  * @param b the blue component of the color stop
  * @param a the alpha chanel of the color stop
  */
-vkvg_status_t vkvg_pattern_add_color_stop (VkvgPattern pat, float offset, float r, float g, float b, float a);
+vkvg_status_t vkvg_pattern_add_color_stop (
+    VkvgPattern pat,
+    float offset,
+    float r,
+    float g,
+    float b,
+    float a);
 /**
  * @brief control the extend of the pattern
  *

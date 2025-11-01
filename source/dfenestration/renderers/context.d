@@ -1,7 +1,6 @@
 module dfenestration.renderers.context;
 
-import bindbc.freetype;
-import bindbc.hb;
+import dfenestration.renderers.image;
 
 /++
  + Almost replicates Cairo's API.
@@ -48,6 +47,7 @@ interface Context {
 
     void sourceRgba(float r, float g, float b, float a);
     void sourceRgb(float r, float g, float b);
+    void sourceImage(Image img, float x, float y);
 
     void lineWidth(float width);
 

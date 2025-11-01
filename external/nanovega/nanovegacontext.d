@@ -1,8 +1,10 @@
 module nanovegacontext;
 
 import std.logger;
+import std.range;
 
 import dfenestration.renderers.context;
+import dfenestration.renderers.image;
 
 import arsd.nanovega;
 
@@ -145,7 +147,9 @@ class NanoVegaContext: Context {
         context.fill(__traits(parameters));
     }
 
-    // void paint() => context.paint(__traits(parameters));
+    // void paint() {
+    //     context.paint(__traits(parameters));
+    // }
     // void clear() => context.clear(__traits(parameters));
 
     void scissor(float x, float y, float w, float h) {
@@ -178,6 +182,11 @@ class NanoVegaContext: Context {
         color = nvgRGBf(r, g, b);
         context.fillColor = color;
         context.strokeColor = color;
+    }
+    void sourceImage(Image img, float x, float y) {
+        NVGImage image = context.toNVGImage(img);
+        NVGPaint paint = context.imagePattern(x, y, img.width, img.height, 0, image);
+        context.fillPaint = paint;
     }
 
     void lineWidth(float width) => context.strokeWidth(__traits(parameters));
@@ -231,5 +240,20 @@ class NanoVegaException : Exception
     {
         super(msg, file, line);
     }
-} 
+}
 
+pragma(inline, true)
+NVGImage toNVGImage(NVGContext context, ref Image image) {
+    auto pixels = image.pixels;
+    ubyte[] rawBytes = new ubyte[](pixels.length * 4);
+    foreach (idx, pixel; pixels.enumerate()) {
+        RGBA rgbaPixel = RGBA(pixel, image.format);
+        ubyte r = cast(ubyte) (rgbaPixel.red * ubyte.max);
+        ubyte g = cast(ubyte) (rgbaPixel.green * ubyte.max);
+        ubyte b = cast(ubyte) (rgbaPixel.blue * ubyte.max);
+        ubyte a = cast(ubyte) (rgbaPixel.alpha * ubyte.max);
+        rawBytes[idx * 4.. (idx + 1) * 4] = [r, g, b, a];
+    }
+
+    return context.createImageRGBA(image.width, image.height, rawBytes);
+}

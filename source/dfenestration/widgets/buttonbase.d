@@ -51,17 +51,21 @@ abstract class ButtonBase: Container!Widget {
 
         context.rectangle(0, 0, allocation.size.tupleof);
         if (widgetState & WidgetState.pressed) {
-            context.sourceRgb(0.1, 0.1, 0.1);
+            context.sourceRgb(0.9, 0.9, 0.9);
         } else if (widgetState & WidgetState.hovered) {
-            context.sourceRgb(0.4, 0.4, 0.4);
+            context.sourceRgb(0.95, 0.95, 0.95);
         } else {
-            context.sourceRgb(0.7, 0.7, 0.7);
+            context.sourceRgb(1, 1, 1);
         }
-        context.fill();
+        context.fillPreserve();
+        context.sourceRgb(0.9, 0.9, 0.9);
+        context.lineWidth = 2;
+        context.stroke();
+
         if (widgetState & WidgetState.focused) {
-            context.sourceRgb(0, 0, 0);
+            context.sourceRgba(0, 0, 0, 0.05);
             context.rectangle(2, 2, allocation.width - 4, allocation.height - 4);
-            context.lineWidth = 2;
+            context.lineWidth = 1;
             context.stroke();
         }
 

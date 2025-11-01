@@ -152,7 +152,8 @@ final class XdgToplevelIconManagerV1 : WlProxy
                  XdgToplevelIconV1 icon)
     {
         wl_proxy_marshal(
-            proxy, setIconOpCode, toplevel.proxy, icon.proxy
+            proxy, setIconOpCode, toplevel.proxy,
+            icon is null ? null : icon.proxy
         );
     }
 

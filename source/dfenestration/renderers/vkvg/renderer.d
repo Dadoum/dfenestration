@@ -15,6 +15,7 @@ version (VkVG) {
 
     import dfenestration.backends.backend;
     import dfenestration.primitives;
+    import dfenestration.renderers.image;
     import dfenestration.renderers.renderer;
 
     import dfenestration.widgets.window;
@@ -254,7 +255,17 @@ version (VkVG) {
             VkVGRendererProperties* rendererProperties = window.vkvgRendererProperties();
             rendererProperties.renderer = this;
             rendererProperties.swapchainSize = backendWindow.canvasSize();
-            rendererProperties.vkvgDevice = new Device(instance, physicalDevice, device, graphicsQueueIndex, 0, VK_SAMPLE_COUNT_8_BIT, false);
+            vkvg_device_create_info_t createInfo = {
+                samples: VK_SAMPLE_COUNT_8_BIT,
+                deferredResolve: false,
+                inst: instance,
+                phy: physicalDevice,
+                vkdev: device,
+                qFamIdx: graphicsQueueIndex,
+                qIndex: 0,
+                threadAware: false,
+            };
+            rendererProperties.vkvgDevice = new Device(&createInfo);
 
             // rendererProperties.device
             //     = new Device(instance, physicalDevice, device, graphicsQueueIndex, 0, VK_SAMPLE_COUNT_8_BIT, false);
