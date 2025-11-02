@@ -698,6 +698,48 @@ version (Wayland):
             }
         }
 
+        ResizeEdge resizeEdge(Point location) {
+            auto sz = _userSize;
+            const edgeSize = 2 * resizeMarginSize;
+
+            const leftEdge = location.x < edgeSize;
+            const topEdge = location.y < edgeSize;
+            if (topEdge && leftEdge) {
+                cursor = CursorType.nwResize;
+                return ResizeEdge.topLeft;
+            }
+            const rightEdge = location.x > sz.width - edgeSize;
+            if (topEdge && rightEdge) {
+                cursor = CursorType.neResize;
+                return ResizeEdge.topRight;
+            }
+            const bottomEdge = location.y > sz.height - edgeSize;
+            if (bottomEdge && leftEdge) {
+                return ResizeEdge.bottomLeft;
+            }
+            if (bottomEdge && rightEdge) {
+                return ResizeEdge.bottomRight;
+            }
+
+            if (topEdge) {
+                return ResizeEdge.top;
+            }
+
+            if (leftEdge) {
+                return ResizeEdge.left;
+            }
+
+            if (rightEdge) {
+                return ResizeEdge.right;
+            }
+
+            if (bottomEdge) {
+                return ResizeEdge.bottom;
+            }
+
+            assert(false, "Impossible edge touched.");
+        }
+
         void onHover(Point location) {
             if (useEmulatedResizeBorders) {
                 auto sz = _userSize;
@@ -706,58 +748,36 @@ version (Wayland):
                         window.onHoverEnd(*mouseLocation);
                     }
 
-                    const edgeSize = 2 * resizeMarginSize;
+                    auto resizeEdge = resizeEdge(location);
+                    mousePos = WaylandMousePos.resizeEdge(resizeEdge);
 
-                    const leftEdge = location.x < edgeSize;
-                    const topEdge = location.y < edgeSize;
-                    if (topEdge && leftEdge) {
-                        cursor = CursorType.nwResize;
-                        mousePos = WaylandMousePos.resizeEdge(ResizeEdge.topLeft);
-                        return;
+                    final switch (resizeEdge) {
+                        case ResizeEdge.topLeft:
+                            cursor = CursorType.nwResize;
+                            break;
+                        case ResizeEdge.topRight:
+                            cursor = CursorType.neResize;
+                            break;
+                        case ResizeEdge.bottomLeft:
+                            cursor = CursorType.swResize;
+                            break;
+                        case ResizeEdge.bottomRight:
+                            cursor = CursorType.seResize;
+                            break;
+                        case ResizeEdge.top:
+                            cursor = CursorType.nResize;
+                            break;
+                        case ResizeEdge.left:
+                            cursor = CursorType.wResize;
+                            break;
+                        case ResizeEdge.right:
+                            cursor = CursorType.eResize;
+                            break;
+                        case ResizeEdge.bottom:
+                            cursor = CursorType.sResize;
+                            break;
                     }
-                    const rightEdge = location.x > sz.width - edgeSize;
-                    if (topEdge && rightEdge) {
-                        cursor = CursorType.neResize;
-                        mousePos = WaylandMousePos.resizeEdge(ResizeEdge.topRight);
-                        return;
-                    }
-                    const bottomEdge = location.y > sz.height - edgeSize;
-                    if (bottomEdge && leftEdge) {
-                        cursor = CursorType.swResize;
-                        mousePos = WaylandMousePos.resizeEdge(ResizeEdge.bottomLeft);
-                        return;
-                    }
-                    if (bottomEdge && rightEdge) {
-                        cursor = CursorType.seResize;
-                        mousePos = WaylandMousePos.resizeEdge(ResizeEdge.bottomRight);
-                        return;
-                    }
-
-                    if (topEdge) {
-                        cursor = CursorType.nResize;
-                        mousePos = WaylandMousePos.resizeEdge(ResizeEdge.top);
-                        return;
-                    }
-
-                    if (leftEdge) {
-                        cursor = CursorType.wResize;
-                        mousePos = WaylandMousePos.resizeEdge(ResizeEdge.left);
-                        return;
-                    }
-
-                    if (rightEdge) {
-                        cursor = CursorType.eResize;
-                        mousePos = WaylandMousePos.resizeEdge(ResizeEdge.right);
-                        return;
-                    }
-
-                    if (bottomEdge) {
-                        cursor = CursorType.sResize;
-                        mousePos = WaylandMousePos.resizeEdge(ResizeEdge.bottom);
-                        return;
-                    }
-
-                    enforce(false, "Impossible edge touched.");
+                    return;
                 }
 
                 location.x -= resizeMarginSize;
@@ -776,15 +796,12 @@ version (Wayland):
             if (useEmulatedResizeBorders) {
                 auto sz = size;
                 if (!Rectangle(resizeMarginSize, resizeMarginSize, sz.tupleof).contains(location)) {
-                    warning("Attempted to resize the window with touch: this is not yet supported.");
-                    // onHover(location);
-                    // onClickStart(MouseButton.left);
+                    window.resizeDrag(resizeEdge(location));
                     return;
                 }
                 location.x -= resizeMarginSize;
                 location.y -= resizeMarginSize;
             }
-            location = location.unscale(scaling);
 
             window.onTouchStart(location);
         }
@@ -798,7 +815,6 @@ version (Wayland):
                 location.x -= resizeMarginSize;
                 location.y -= resizeMarginSize;
             }
-            location = location.unscale(scaling);
 
             window.onTouchMove(location);
         }
@@ -812,7 +828,6 @@ version (Wayland):
                 location.x -= resizeMarginSize;
                 location.y -= resizeMarginSize;
             }
-            location = location.unscale(scaling);
 
             window.onTouchEnd(location);
         }

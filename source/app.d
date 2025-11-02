@@ -36,12 +36,14 @@ int main() {
 			],
 		];
 
-	// force client-side decorations
-	import dfenestration.backends.wayland;
-	if (auto wayland = cast(WaylandBackend) window.backend) {
-		wayland.xdgDecorationManager = null;
-		wayland.kdeDecorationManager = null;
-	}
+    version (Wayland) {
+        // force client-side decorations
+        import dfenestration.backends.wayland;
+        if (auto wayland = cast(WaylandBackend) window.backend) {
+            wayland.xdgDecorationManager = null;
+            wayland.kdeDecorationManager = null;
+        }
+    }
 
 	return window.run();
 }

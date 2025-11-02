@@ -47,9 +47,9 @@ abstract class Widget {
     bool onClickStart(Point location, MouseButton button) { return false; }
     bool onClickEnd(Point location, MouseButton button) { return false; }
 
-    bool onTouchStart(Point location) { return onClickStart(location, MouseButton.left); }
-    bool onTouchMove(Point location) { return onHover(location); }
-    bool onTouchEnd(Point location) { return onClickEnd(location, MouseButton.left); }
+    bool onTouchStart(Point location) { return false; }
+    bool onTouchMove(Point location) { return false; }
+    bool onTouchEnd(Point location) { return false; }
 
     /++
      + Pinch touchpad gesture (or touch screen)
@@ -230,6 +230,13 @@ abstract class Widget {
 
     final Window window() {
         return _window;
+    }
+
+    debug {
+        override string toString() {
+            import std.format;
+            return format!"%s(%x)"(super.toString(), cast(void*) this);
+        }
     }
 }
 

@@ -49,7 +49,12 @@ class WindowHandle: Bin {
         return super.onClickEnd(location, button);
     }
 
-    override bool onTouchStart(Point location) { return onClickStart(location, MouseButton.left); }
-    override bool onTouchMove(Point location) { return onHover(location); }
-    override bool onTouchEnd(Point location) { return onClickEnd(location, MouseButton.left); }
+    override bool onTouchMove(Point location) {
+        window.moveDrag();
+        return true;
+    }
+
+    override bool onTouchEnd(Point location) {
+        return true;
+    }
 }

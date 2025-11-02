@@ -1,12 +1,10 @@
 {
 	"fileVersion": 1,
 	"versions": {
-		"arsd-official": {"version":"32c2d2c5baf44afd864bac723a231ffc92df8986","repository":"git+https://github.com/Dadoum/arsd.git"},
+		"arsd-official": "12.1.0",
 		"aurora-directx": "12.1.2+10.0.17763.0",
 		"bindbc-common": "0.1.6",
-		"bindbc-freetype": "1.2.6",
 		"bindbc-gles": "0.0.4",
-		"bindbc-harfbuzz": "0.2.1",
 		"bindbc-loader": "1.1.5",
 		"bindbc-opengl": "1.1.0",
 		"derelict-util": "2.0.6",

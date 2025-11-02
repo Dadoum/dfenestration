@@ -43,10 +43,6 @@ import std.logger;
 
     }
 
-    override bool onTouchStart(Point location) { return onClickStart(location, MouseButton.left); }
-    override bool onTouchMove(Point location) { return onHover(location); }
-    override bool onTouchEnd(Point location) { return onClickEnd(location, MouseButton.left); }
-
     static if (is(typeof(this): ContainerBase)) {
         override bool nextFocus() {
             return onFocusRequest();

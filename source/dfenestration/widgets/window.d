@@ -437,6 +437,46 @@ class Window: Container!Widget {
             });
         }
     }
+
+    bool _emulateTouchClick = false;
+    override bool onTouchStart(Point location) {
+        if (super.onTouchStart(location)) {
+            return true;
+        }
+        if (super.onHoverStart(location)) {
+            if (super.onClickStart(location, MouseButton.left)) {
+                _emulateTouchClick = true;
+                return true;
+            } else {
+                super.onHoverEnd(location);
+                return false;
+            }
+        }
+        return false;
+    }
+
+    override bool onTouchMove(Point location) {
+        if (super.onTouchMove(location)) {
+            if (_emulateTouchClick) {
+                super.onHoverEnd(location);
+            }
+            _emulateTouchClick = false;
+            return true;
+        } else {
+            return super.onHover(location);
+        }
+    }
+
+    override bool onTouchEnd(Point location) {
+        if (!_emulateTouchClick) {
+            return super.onTouchEnd(location);
+        } else {
+            _emulateTouchClick = false;
+            auto ret = onClickEnd(location, MouseButton.left);
+            super.onHoverEnd(location);
+            return ret;
+        }
+    }
 }
 
 enum ResizeEdge: byte {

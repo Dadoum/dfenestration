@@ -150,6 +150,8 @@ Priority:
 - [ ] Making a TextLine widget
 - [ ] Making a ScrollView widget
 - [ ] Accessibility: AT-SPI
+- [ ] Simple display backend?
+- [ ] GLFW backend?
 - [x] Fractional scaling on Wayland
 - [ ] Platform support: Windows (with any renderer)
 - [ ] Accessibility: Windows
