@@ -83,8 +83,12 @@ class NanoVegaContext: Context {
         context.lineTo(this.x, this.y);
     }
 
-    // void arc(float xc, float yc, float radius, float a1, float a2) => context.arc(__traits(parameters));
-    // void arcNegative(float xc, float yc, float radius, float a1, float a2) => context.arcNegative(__traits(parameters));
+    void arc(float xc, float yc, float radius, float a1, float a2) {
+        context.arc(NVGWinding.CW, xc, yc, radius, a1, a2);
+    }
+    void arcNegative(float xc, float yc, float radius, float a1, float a2) {
+        context.arc(NVGWinding.CCW, xc, yc, radius, a1, a2);
+    }
 
     void curveTo(float x1, float y1, float x2, float y2, float x3, float y3) {
         version (NVGClipWorkaround) {
@@ -103,7 +107,7 @@ class NanoVegaContext: Context {
         this.y = y + dy3;
     }
 
-    // void quadraticTo(float x1, float y1, float x2, float y2) => context.quadTo(__traits(parameters));
+    void quadraticTo(float x1, float y1, float x2, float y2) => context.quadTo(__traits(parameters));
     void rectangle(float x, float y, float w, float h) {
         version (NVGClipWorkaround) {
             if (isPathRectangular) {
@@ -183,7 +187,7 @@ class NanoVegaContext: Context {
         context.fillColor = color;
         context.strokeColor = color;
     }
-    void sourceImage(Image img, float x, float y) {
+    void sourceImage(Pixbuf img, float x, float y) {
         NVGImage image = context.toNVGImage(img);
         NVGPaint paint = context.imagePattern(x, y, img.width, img.height, 0, image);
         context.fillPaint = paint;
@@ -214,20 +218,6 @@ class NanoVegaContext: Context {
     }
     // void identityMatrix();
 
-    void selectFontFace(string name) {
-        error("Font config support not implemented, cannot load ", name, " (ignoring)");
-    }
-    void selectFontPath(string path) {
-        auto ret = context.createFont("font", path);
-        if (ret == -1) {
-            throw new NanoVegaException("Cannot load that font!!");
-        }
-        context.fontFaceId = ret;
-    }
-    void fontSize(uint size) {
-        context.fontSize = size;
-    }
-
     // void showGlyph(RenderedGlyph glyph) {
     //     warning("Not implemented");
     // }
@@ -243,7 +233,7 @@ class NanoVegaException : Exception
 }
 
 pragma(inline, true)
-NVGImage toNVGImage(NVGContext context, ref Image image) {
+NVGImage toNVGImage(NVGContext context, ref Pixbuf image) {
     auto pixels = image.pixels;
     ubyte[] rawBytes = new ubyte[](pixels.length * 4);
     foreach (idx, pixel; pixels.enumerate()) {

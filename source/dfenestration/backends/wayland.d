@@ -560,6 +560,7 @@ version (Wayland):
             configureDecorated();
             configureMinimumSize();
             configureMaximumSize();
+            configureResizable();
             configurePosition();
             configureParent();
             configureSize();
@@ -1073,16 +1074,15 @@ version (Wayland):
             return _resizable;
         }
         void resizable(bool value) {
-            if (value != _resizable) {
-                if (value) {
-                    _resizable = true;
-                    minimumSize = minimumSize;
-                    maximumSize = maximumSize;
-                } else {
-                    Size sz = size;
-                    minimumSize = sz;
-                    maximumSize = sz;
-                    _resizable = false;
+            _resizable = value;
+            configureResizable();
+        }
+        void configureResizable() {
+            if (!_resizable) {
+                if (auto toplevel = xdgWindow.toplevel) {
+                    auto size = size();
+                    toplevel.setMinSize(size.tupleof);
+                    toplevel.setMaxSize(size.tupleof);
                 }
             }
         }
@@ -1117,11 +1117,11 @@ version (Wayland):
             }
         }
 
-        Nullable!Image _image;
-        Nullable!Image icon() {
+        Nullable!Pixbuf _image;
+        Nullable!Pixbuf icon() {
             return _image;
         }
-        void icon(Nullable!Image value) {
+        void icon(Nullable!Pixbuf value) {
             _image = value;
 
 
@@ -1599,8 +1599,8 @@ pragma(inline, true) {
     }
 }
 
-pragma(inline, true) WlShm.Format toWlShmFormat(Image.Format format) {
-    with (Image.Format) switch (format) {
+pragma(inline, true) WlShm.Format toWlShmFormat(Pixbuf.Format format) {
+    with (Pixbuf.Format) switch (format) {
         case rgba8888:
             return WlShm.Format.rgba8888;
         case c8:

@@ -27,6 +27,6 @@ class Bin: Container!Widget {
     }
 
     override uint baselineHeight() {
-        return _content.baselineHeight();
+        return _content.baselineHeight() + _content.allocation().y;
     }
 }

@@ -2,7 +2,7 @@ module dfenestration.renderers.image;
 
 import std.range;
 
-struct Image {
+struct Pixbuf {
     enum Format {
         rgbaFFFF,
         rgba8888,
@@ -54,8 +54,8 @@ struct Image {
     //     return lines().transposed();
     // }
 
-    Image opBinary(string op : "*")(RGBA rgba) {
-        Image image = Image(width, height, Format.rgbaFFFF);
+    Pixbuf opBinary(string op : "*")(RGBA rgba) {
+        Pixbuf image = Pixbuf(width, height, Format.rgbaFFFF);
         RGBA pixel = void;
         foreach (pixelOut, pixelIn; image.pixels().lockstep(pixels)) {
             pixel = RGBA(pixelIn, format) * rgba;
@@ -72,8 +72,8 @@ struct RGBA {
     float alpha;
 
     pragma(inline, true)
-    this(ubyte[] pixel, Image.Format format) {
-        with(Image.Format) final switch (format) {
+    this(ubyte[] pixel, Pixbuf.Format format) {
+        with(Pixbuf.Format) final switch (format) {
             case rgbaFFFF:
                 this = *cast(RGBA*) pixel.ptr;
                 break;
@@ -105,12 +105,12 @@ struct RGBA {
     }
 }
 
-size_t pixelSize(Image.Format format) {
+size_t pixelSize(Pixbuf.Format format) {
     final switch (format) {
-        static foreach (formatIdentifier;  __traits(allMembers, Image.Format)) {
-            static foreach (formatC; [__traits(getMember, Image.Format, formatIdentifier)]) {
+        static foreach (formatIdentifier;  __traits(allMembers, Pixbuf.Format)) {
+            static foreach (formatC; [__traits(getMember, Pixbuf.Format, formatIdentifier)]) {
                 case formatC:
-                    return Image.Pixel!formatC.sizeof;
+                    return Pixbuf.Pixel!formatC.sizeof;
             }
         }
     }

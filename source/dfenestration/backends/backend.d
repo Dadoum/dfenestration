@@ -150,8 +150,8 @@ interface BackendWindow {
 
     void cursor(CursorType type);
 
-    // Image icon();
-    // void icon(Image value);
+    // Pixbuf icon();
+    // void icon(Pixbuf value);
 
     Point position();
     void position(Point value);
@@ -173,8 +173,8 @@ interface BackendWindow {
     bool decorated();
     void decorated(bool value);
 
-    Nullable!Image icon();
-    void icon(Nullable!Image image);
+    Nullable!Pixbuf icon();
+    void icon(Nullable!Pixbuf image);
 
     void parent(BackendWindow window);
 

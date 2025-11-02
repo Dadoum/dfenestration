@@ -4,11 +4,14 @@ public import dfenestration.types;
 public import dfenestration.primitives;
 
 import std.algorithm.comparison;
+import std.datetime;
 import std.logger;
 
 import libasync;
 
+import dfenestration.animation;
 import dfenestration.backends.backend;
+import dfenestration.containers.queuelist;
 
 import dfenestration.renderers.context;
 
@@ -78,6 +81,8 @@ class Window: Container!Widget {
      +/
     this(Backend backend) {
         frame = new WindowFrame();
+        animations = QueueList!Animation(null, null);
+
         this.backend = backend;
         this._window = this;
         backendWindow = backend.createBackendWindow(this);
@@ -334,9 +339,7 @@ class Window: Container!Widget {
      + example.
      +/
     bool focused() { return backendWindow.focused(); }
-    void onFocusedChange(bool focused) {
-
-    }
+    void onFocusedChange(bool focused) {}
 
     /++
      + Maximize window.
@@ -344,9 +347,7 @@ class Window: Container!Widget {
      +/
     @StateGetter bool maximized() { return backendWindow.maximized(); }
     @StateSetter Window maximized(bool value) { backendWindow.maximized(value); return this; }
-    void onMaximizeChange() {
-        info("Maximize change");
-    }
+    void onMaximizeChange() {}
 
     /++
      + Window opacity (if supported).
@@ -395,6 +396,46 @@ class Window: Container!Widget {
 
     void runInMainThread(void delegate() func) {
         backend.runInMainThread(func);
+    }
+
+    QueueList!Animation animations = void;
+
+    AnimationCancellationToken registerAnimation(Animation* animation) {
+        auto token = animations.insertWhen((elem) {
+            return elem.animationEndTime < animation.animationEndTime;
+        }, animation);
+
+        scheduleAnimationHandling();
+        return AnimationCancellationToken(token);
+    }
+
+    void handleAnimations() {
+        animations.removeExecute((animation) {
+            MonoTime now = MonoTime.currTime;
+            if (animation.animationEndTime < now /+ || animation.isCosmetic +/) {
+                animation.update(1f);
+                animation.completed = true;
+                return true;
+            }
+            float progress = 1 - float((animation.animationEndTime - now).total!"msecs") / animation.duration.total!"msecs";
+            animation.update(progress);
+            return false;
+        });
+
+        if (!animations.empty) {
+            scheduleAnimationHandling();
+        }
+    }
+
+    bool animationHandlingScheduled = false;
+    final void scheduleAnimationHandling() {
+        if (!animationHandlingScheduled) {
+            animationHandlingScheduled = true;
+            runInMainThread({
+                animationHandlingScheduled = false;
+                handleAnimations();
+            });
+        }
     }
 }
 

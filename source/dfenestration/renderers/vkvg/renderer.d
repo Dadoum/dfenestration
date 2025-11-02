@@ -142,7 +142,7 @@ version (VkVG) {
                     } else {
                         import std.algorithm.searching: maxIndex;
                         this.physicalDevice = deviceGroup[deviceGroup.map!((dev) {
-                            if (vkvgBackend.isDeviceSuitable(physicalDevice, 0)) {
+                            if (vkvgBackend.isDeviceSuitable(dev, 0)) {
                                 long size;
                                 VkPhysicalDeviceMemoryProperties props;
                                 vkGetPhysicalDeviceMemoryProperties(dev, &props);

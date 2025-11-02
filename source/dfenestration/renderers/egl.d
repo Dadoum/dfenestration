@@ -163,17 +163,23 @@ void initializeEGLForDisplay(EGLDisplay eglDisplay, out EGLConfig eglConfig, out
 }
 
 void loadOpenGLInCurrentContext() {
-    // HACK
-    import bindbc.opengl.context;
-    alias libEGL = __traits(getMember, bindbc.opengl.context, "libEGL");
-    alias getCurrentContext = __traits(getMember, bindbc.opengl.context, "getCurrentContext");
-    alias getProcAddress = __traits(getMember, bindbc.opengl.context, "getProcAddress");
-    libEGL = typeof(libEGL)(cast(void*) 0x1); // fake libEGL as loaded
-    getCurrentContext = eglGetCurrentContext; // give our EGL symbols
-    getProcAddress = eglGetProcAddress;
-    GLSupport glVersion = loadOpenGL();
-    assert(glVersion >= GLSupport.gl30, "Cannot load OpenGL!!");
-    libEGL = typeof(libEGL).init;
+    static import bindbc.opengl.context;
+    static if (__traits(hasMember, bindbc.opengl.context, "libEGL")) {
+        // HACK
+        import bindbc.opengl.context;
+        alias libEGL = __traits(getMember, bindbc.opengl.context, "libEGL");
+        alias getCurrentContext = __traits(getMember, bindbc.opengl.context, "getCurrentContext");
+        alias getProcAddress = __traits(getMember, bindbc.opengl.context, "getProcAddress");
+        libEGL = typeof(libEGL)(cast(void*) 0x1); // fake libEGL as loaded
+        getCurrentContext = eglGetCurrentContext; // give our EGL symbols
+        getProcAddress = eglGetProcAddress;
+        GLSupport glVersion = loadOpenGL();
+        assert(glVersion >= GLSupport.gl30, "Cannot load OpenGL!!");
+        libEGL = typeof(libEGL).init;
+    } else {
+        GLSupport glVersion = loadOpenGL();
+        assert(glVersion >= GLSupport.gl30, "Cannot load OpenGL!!");
+    }
 }
 
 enum EGL_PLATFORM_XCB_EXT = 0x31DC;

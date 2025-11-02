@@ -30,7 +30,7 @@ class HorizontalText: Widget {
     Size _boundingBox;
     uint _baselineHeight;
 
-    Image _renderedText;
+    Pixbuf _renderedText;
 
     bool shapingRequired = true;
     float scaling = 1.75;
@@ -88,7 +88,7 @@ class HorizontalText: Widget {
 
         scope HaCanvas canvas = new HaCanvas(_boundingBox.width, _boundingBox.height, HaColorFormat.CBPP8);
         renderer.render(_face, _textBuffer, vec2(0, textSize.y), canvas);
-        auto image = Image(_boundingBox.width, _boundingBox.height, Image.Format.c8);
+        auto image = Pixbuf(_boundingBox.width, _boundingBox.height, Pixbuf.Format.c8);
 
         foreach (idx, line; image.lines().enumerate()) {
             ubyte[] source = cast(ubyte[]) canvas.scanline(cast(int) idx);
@@ -106,7 +106,6 @@ class HorizontalText: Widget {
         }
 
         _renderedText = image * style.textColor();
-        trace("Layout OK.");
 
         shapingRequired = false;
     }

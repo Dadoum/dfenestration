@@ -27,7 +27,10 @@ int main() {
 					new Button()
 						.pressed((_) => info("Click registered!"))
 					[
-						new Text(text: "Hello!!")
+                        new Aligner()
+                        [
+                            new Text("Hello!!")
+                        ]
 					]
 				]
 			],
@@ -46,12 +49,15 @@ int main() {
 /+ Some test code:
 
 
-	auto childWin = new Window().title("Hello") [
-		new Test()
-	];
-	childWin.backendWindow.parent = window.backendWindow;
-	window.show();
-	childWin.show();
+    auto childWin =
+        new class Window { override void onCloseRequest() { this.hide(); } }
+            .title("Hello")
+            .size(Size(200, 200)) [
+            new Test()
+        ];
+    childWin.backendWindow.parent = window.backendWindow;
+    window.show();
+    childWin.show();
 
 	import std.datetime;
 	import std.logger;

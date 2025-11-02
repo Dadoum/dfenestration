@@ -538,11 +538,11 @@ final class XcbWindow: BackendWindow, VkVGWindow, NanoVegaGLWindow {
         _decorated = value;
     }
 
-    Nullable!Image icon() {
+    Nullable!Pixbuf icon() {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
-        return Nullable!Image.init;
+        return Nullable!Pixbuf.init;
     }
-    void icon(Nullable!Image value) {
+    void icon(Nullable!Pixbuf value) {
         warning(__PRETTY_FUNCTION__, " has not been implemented for class ", typeof(this).stringof);
     }
 

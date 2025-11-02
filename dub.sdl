@@ -3,13 +3,14 @@ description "A minimal D application."
 authors "Dadoum"
 license "proprietary"
 sourcePaths "source"
-dflags "-link-defaultlib-shared=false" platform="ldc"
+// dflags "-link-defaultlib-shared=false" platform="ldc"
 
 dependency "dynamic-loader" repository="git+https://github.com/Dadoum/dynamicloader.git" version="1d9eaa74e7d54c395ce4abfc15a9654ebfd9c7d2"
 dependency "libasync" version="~>0.9.7"
 
 dependency "hairetsu" repository="git+https://github.com/Inochi2D/hairetsu.git" version="d088cc1a8da4773938628d87a7720ac9f1e0cfb9"
 
+//* // Linux
 // Wayland backend (default on Linux)
 dependency "wayland:client" version="~>0.4"
 subConfiguration "wayland:client" "dynamic"
@@ -26,6 +27,11 @@ versions "Xcb"
 
 // dependency "xlib-d" version="~>0.3.0"
 // versions "X11"
+// */
+
+/* // Windows
+versions "Win32API"
+// */
 
 dependency "erupted" repository="git+https://github.com/Dadoum/erupted.git" version="52a737db4dae261af6aa533b52b91592051d063b"
 sourcePaths "external/vkvg"

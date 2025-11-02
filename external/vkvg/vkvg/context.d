@@ -144,7 +144,7 @@ class VkVGContext: Context {
         vkvg_set_source_rgb(handle, r, g, b);
     }
 
-    void sourceImage(Image image, float x, float y) {
+    void sourceImage(Pixbuf image, float x, float y) {
         // vkvg_surface_create_from_bitmap(image.buffer, image.width, image.height);
         // vkvg_set_source_surface(handle, , x, y);
         warning("sourceImage not implemented for VkVG.");

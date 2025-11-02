@@ -39,14 +39,17 @@ int main()
                 new Button()
                     .pressed((_) => info("Click registered!"))
                 [
-                    new Text(text: "Hello!!")
+                    new Aligner()
+                    [
+                        new Text("Hello!!")
+                    ]
                 ]
             ]
         ],
     ].run();
 ```
 
-Screenshot of that example (as of 2024-07-31, Wayland without server decorations + OpenGL):
+Screenshot of that example (as of 2025-11-02, Wayland without server decorations + OpenGL + Fractional scaling 175%):
 
 ![Screenshot of the example on Wayland with an OpenGL renderer (2024-07-31)](screenshots/example-readme-wayland-gl.png)
 
@@ -147,7 +150,7 @@ Priority:
 - [ ] Making a TextLine widget
 - [ ] Making a ScrollView widget
 - [ ] Accessibility: AT-SPI
-- [ ] Fractional scaling on Wayland
+- [x] Fractional scaling on Wayland
 - [ ] Platform support: Windows (with any renderer)
 - [ ] Accessibility: Windows
 - [ ] Theming (theme engines, affecting defaults and draws)

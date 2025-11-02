@@ -30,6 +30,16 @@ class EllipsisText: Text {
     //     }
     //     return this;
     // }
+
+    override void preferredSize(
+        out uint minimumWidth,
+        out uint naturalWidth,
+        out uint minimumHeight,
+        out uint naturalHeight
+    ) {
+        super.preferredSize(minimumWidth, naturalWidth, minimumHeight, naturalHeight);
+        minimumWidth = 0;
+    }
 }
 
 private static uint abs(int r) {

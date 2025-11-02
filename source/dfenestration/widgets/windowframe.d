@@ -5,6 +5,7 @@ import dfenestration.widgets.bin;
 import dfenestration.widgets.buttonbase;
 import dfenestration.widgets.column;
 import dfenestration.widgets.container;
+import dfenestration.widgets.ellipsistext;
 import dfenestration.widgets.row;
 import dfenestration.widgets.spacer;
 import dfenestration.widgets.text;
@@ -34,8 +35,7 @@ class WindowFrame: Bin {
                         .horizontalAlignment(Alignment.left)
                         .layoutProperties!Row(/+ expand +/ true) [
                         // TODO: add window icon
-                        // TODO: finish EllipsisText
-                        titleText = new Text("DFENESTRATION ERROR - SET THE TITLE FIRST")
+                        titleText = new EllipsisText("DFENESTRATION ERROR - SET THE TITLE FIRST")
                             .selectable(false),
                     ],
                     // new Spacer().layoutProperties!Row(/+ expand +/ true),

@@ -21,13 +21,13 @@ interface Context {
     void moveTo(float x, float y);
     void relMoveTo(float x, float y);
 
-    // void arc(float xc, float yc, float radius, float a1, float a2);
-    // void arcNegative(float xc, float yc, float radius, float a1, float a2);
+    void arc(float xc, float yc, float radius, float a1, float a2);
+    void arcNegative(float xc, float yc, float radius, float a1, float a2);
 
     void curveTo(float x1, float y1, float x2, float y2, float x3, float y3);
     void relCurveTo(float x1, float y1, float x2, float y2, float x3, float y3);
 
-    // void quadraticTo(float x1, float y1, float x2, float y2);
+    void quadraticTo(float x1, float y1, float x2, float y2);
     void rectangle(float x, float y, float w, float h);
     void stroke();
     void strokePreserve();
@@ -47,7 +47,7 @@ interface Context {
 
     void sourceRgba(float r, float g, float b, float a);
     void sourceRgb(float r, float g, float b);
-    void sourceImage(Image img, float x, float y);
+    void sourceImage(Pixbuf img, float x, float y);
 
     void lineWidth(float width);
 
@@ -62,4 +62,13 @@ interface Context {
     // void identityMatrix();
 
     // void showGlyph(RenderedGlyph glyph);
+}
+
+void roundedRectangle(Context context, float x, float y, float w, float h, float r) {
+    import std.math: PI;
+    context.arc(x + r, y + r, r, PI, 3 * PI/2);
+    context.arc(x+w-r, y+r, r, 3*PI/2, 0);
+    context.arc(x+w-r, y+h-r, r, 0, PI/2);
+    context.arc(x+r, y+h-r, r, PI/2, PI);
+    context.closePath();
 }

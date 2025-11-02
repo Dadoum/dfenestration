@@ -72,7 +72,7 @@ enum CursorType {
     zoomIn,
     /// something can be zoomed out
     zoomOut,
-    // @Image custom
+    // @Pixbuf custom
 }
 
 enum MouseButton {

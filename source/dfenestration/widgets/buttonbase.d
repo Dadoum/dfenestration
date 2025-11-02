@@ -1,5 +1,7 @@
 module dfenestration.widgets.buttonbase;
 
+import dfenestration.animation;
+
 import dfenestration.widgets.container;
 import dfenestration.widgets.control;
 import dfenestration.widgets.widget;
@@ -12,12 +14,44 @@ abstract class ButtonBase: Container!Widget {
 
     private struct _ {
         @TriggerWindowSizeAllocation uint spacing = 4;
+        @TriggerRedraw float backgroundColor = 1.;
     }
 
     mixin State!_;
 
     this() {
         cursor = CursorType.pointer;
+    }
+
+    AnimationCancellationToken animCancel;
+    WidgetState _state;
+
+    @StateGetter
+    WidgetState widgetState() {
+        return _state;
+    }
+
+    @StateSetter
+    ButtonBase widgetState(WidgetState state) {
+        auto changes = state ^ _state;
+        if (changes & (WidgetState.pressed | WidgetState.hovered)) {
+            if (animCancel.valid) {
+                animCancel.cancel(window);
+            }
+
+            auto currentColor = backgroundColor;
+            auto targetColor =
+                state & WidgetState.pressed ? pressedColor :
+                state & WidgetState.hovered ? hoveredColor :
+                normalColor;
+
+            animCancel = window.registerAnimation(new Animation(dur!"msecs"(100), (progress) {
+                backgroundColor = lerp(currentColor, targetColor, progress);
+            }, true));
+        }
+        _state = state;
+        invalidate(allocation());
+        return this;
     }
 
     override void preferredSize(
@@ -45,18 +79,16 @@ abstract class ButtonBase: Container!Widget {
         return true;
     }
 
+    enum pressedColor = 0.9;
+    enum hoveredColor = 0.95;
+    enum normalColor = 1.;
+
     override void draw(Context context, Rectangle rectangle) {
         auto allocation = allocation();
         auto widgetState = widgetState();
 
-        context.rectangle(0, 0, allocation.size.tupleof);
-        if (widgetState & WidgetState.pressed) {
-            context.sourceRgb(0.9, 0.9, 0.9);
-        } else if (widgetState & WidgetState.hovered) {
-            context.sourceRgb(0.95, 0.95, 0.95);
-        } else {
-            context.sourceRgb(1, 1, 1);
-        }
+        context.roundedRectangle(0, 0, allocation.size.tupleof, 10);
+        context.sourceRgb(backgroundColor, backgroundColor, backgroundColor);
         context.fillPreserve();
         context.sourceRgb(0.9, 0.9, 0.9);
         context.lineWidth = 2;
